@@ -219,7 +219,7 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
               Após o pagamento, a ativação é automática.
             </p>
 
-            {import.meta.env.DEV && (
+            {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_SIMULATE === 'true') && (
               <button onClick={async () => {
                 const r = await platformApi.post('/salon/checkout/simulate', { chargeId: charge.id, plan: selectedPlan }, { headers: { 'x-salon-id': salonId } })
                 if (r.data?.ok) onActivated()
