@@ -1,0 +1,24 @@
+# Dependências
+node_modules/
+
+# Build do Vite
+dist/
+dist-ssr/
+.vite/
+
+# Variáveis de ambiente — só o .env.example (se existir) vai pro repositório
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs e cobertura de testes
+*.log
+npm-debug.log*
+coverage/
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Paleta padrão — terracota */
+:root {
+  --bg:        253 244 245;
+  --surface:   255 255 255;
+  --surface-2: 250 240 241;
+  --surface-3: 244 228 230;
+  --ink:       42 30 24;
+  --ink-2:     91 70 60;
+  --ink-3:     141 123 111;
+  --ink-4:     180 165 152;
+  --line:      236 213 216;
+  --line-2:    243 228 230;
+  --line-3:    223 196 200;
+
+  --brand:          139 74 43;
+  --brand-dark:     114 57 31;
+  --brand-soft:     241 227 214;
+  --brand-soft-ink: 122 63 35;
+}
+
+@layer base {
+  html, body {
+    @apply bg-bg text-ink font-body;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-image:
+      radial-gradient(ellipse at 15% 40%, rgba(139,74,43,0.04) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 15%, rgba(201,165,123,0.05) 0%, transparent 50%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear,
+  input[type='password']::-webkit-credentials-auto-fill-button {
+    display: none !important;
+  }
+}
+
+@layer utilities {
+  .eyebrow {
+    @apply font-mono text-xs uppercase tracking-widest text-ink-3;
+  }
+  .bg-off-hours {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgb(var(--ink) / 0.045),
+      rgb(var(--ink) / 0.045) 4px,
+      transparent 4px,
+      transparent 9px
+    );
+  }
+  .scrollbar-hidden::-webkit-scrollbar { display: none; }
+  .scrollbar-hidden { scrollbar-width: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in  { animation: fade-in  0.24s ease-out both; }
+.animate-fade-up  { animation: fade-up  0.32s ease-out both; }
+.animate-scale-in { animation: scale-in 0.20s ease-out both; }
+
+/* Midnight — dark mode overrides */
+[data-palette="midnight"] body {
+  background-image:
+    radial-gradient(ellipse at 15% 40%, rgba(155,143,201,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(100,90,160,0.07) 0%, transparent 50%);
+}
+
+/* Grain texture */
+.grain { position: relative; }
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1px 1px;
+  mix-blend-mode: overlay;
+}
+
+/* Sidebar — scrollbar invisível mas funcional */
+aside::-webkit-scrollbar { display: none; }
+aside { scrollbar-width: none; }
+.nav-scroll::-webkit-scrollbar { display: none; }
+.nav-scroll { scrollbar-width: none; }
+
+/* ── Shepherd Tour — Dauth overrides ── */
+.shepherd-element {
+  border-radius: 12px !important;
+  border: 1px solid rgb(var(--line)) !important;
+  background: rgb(var(--surface)) !important;
+  box-shadow: 0 8px 32px rgb(var(--ink) / 0.12) !important;
+  max-width: 320px !important;
+}
+.shepherd-header {
+  background: transparent !important;
+  padding: 16px 16px 0 !important;
+  border-bottom: none !important;
+}
+.shepherd-title {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 15px !important;
+  color: rgb(var(--ink)) !important;
+}
+.shepherd-text {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  color: rgb(var(--ink-2)) !important;
+  line-height: 1.55 !important;
+  padding: 8px 16px 0 !important;
+}
+.shepherd-footer {
+  padding: 12px 16px 16px !important;
+  gap: 8px !important;
+}
+.shepherd-btn-primary {
+  background: rgb(var(--brand)) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 16px !important;
+  cursor: pointer !important;
+}
+.shepherd-btn-primary:hover { background: rgb(var(--brand) / 0.85) !important; }
+.shepherd-btn-skip {
+  background: transparent !important;
+  color: rgb(var(--ink-3)) !important;
+  border: none !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+}
+.shepherd-btn-skip:hover { color: rgb(var(--ink)) !important; }
+.shepherd-modal-overlay-container path { fill: rgba(0,0,0,0.4) !important; }
+.shepherd-cancel-icon { color: rgb(var(--ink-3)) !important; }
+.shepherd-cancel-icon:hover { color: rgb(var(--ink)) !important; }
+
+/* Modo "ocultar valores" — substitui valores monetários por •••• na tela para
+   mostrar o sistema para alguém sem expor números reais. Ver
+   src/store/privacyStore.js e src/components/ui/MoneyValue.jsx */
+.privacy-mask {
+  user-select: none;
+  letter-spacing: 1px;
+  opacity: 0.55;
+}
