@@ -10,29 +10,9 @@ import MoneyValue from '@/components/ui/MoneyValue'
 import ClienteSidebar from '@/components/layout/ClienteSidebar'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { formatCurrency, formatDate, tabStatusLabel, tabStatusVariant } from '@/lib/format'
 
 const STATUS_FILTERS = ['Todos', 'Em aberto', 'Paga', 'Expirada']
-
-function statusVariant(s) {
-  if (s === 'Em aberto') return 'warning'
-  if (s === 'Paga' || s === 'Pago') return 'success'
-  return 'danger'
-}
-
-function statusLabel(s) {
-  if (s === 'Pago') return 'Paga'
-  return s
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
-}
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
-}
 
 
 export default function MinhasComandas() {
@@ -140,7 +120,7 @@ export default function MinhasComandas() {
                         : <MoneyValue>{formatCurrency(tab.Value)}</MoneyValue>}
                     </td>
                     <td className="px-4 py-3.5 border-b border-line-2">
-                      <Chip variant={statusVariant(tab.Status)}>{statusLabel(tab.Status)}</Chip>
+                      <Chip variant={tabStatusVariant(tab.Status)}>{tabStatusLabel(tab.Status)}</Chip>
                     </td>
                     <td className="px-4 py-3.5 font-mono text-[12px] text-ink-3 border-b border-line-2">
                       {formatDate(tab.Expire_at)}
@@ -166,8 +146,8 @@ export default function MinhasComandas() {
                       </div>
                     )}
                   </div>
-                  <Chip variant={statusVariant(tab.Status)} className="shrink-0">
-                    {statusLabel(tab.Status)}
+                  <Chip variant={tabStatusVariant(tab.Status)} className="shrink-0">
+                    {tabStatusLabel(tab.Status)}
                   </Chip>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-line-2">

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useParams, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import platformApi from '@/lib/platformApi'
-import { canEnterSalon } from '@/lib/salonAccess'
+import { canEnterSalon, paywallReason } from '@/lib/salonAccess'
+import PaywallScreen from '@/components/layout/PaywallScreen'
 import api from '@/lib/api'
 import useSalonStore from '@/store/salonStore'
 import useAuthStore from '@/store/authStore'
@@ -82,8 +83,9 @@ export default function SalonLayout() {
         navigate(useAuthStore.getState().user?.platformRole === 'SalonOwner' ? '/meus-saloes' : '/meus-empregos', { replace: true })
         return
       }
-      if (!fresh || !cur || (cur.plan === fresh.plan && cur.status === fresh.status)) return
-      setSalon({ ...cur, plan: fresh.plan, status: fresh.status }, role, memberId)
+      const samePayments = JSON.stringify(cur?.paymentMethods) === JSON.stringify(fresh?.paymentMethods)
+      if (!fresh || !cur || (cur.plan === fresh.plan && cur.status === fresh.status && cur.trialEndsAt === fresh.trialEndsAt && samePayments)) return
+      setSalon({ ...cur, plan: fresh.plan, status: fresh.status, trialEndsAt: fresh.trialEndsAt, paymentMethods: fresh.paymentMethods }, role, memberId)
     }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [salonSlug])
@@ -100,7 +102,7 @@ export default function SalonLayout() {
           const match = (Array.isArray(data) ? data : []).find(m => m.salon?.slug === salonSlug && canEnterSalon(m))
           if (match) {
             setSalon(
-              { id: match.salonId, name: match.salon.name, slug: match.salon.slug, plan: match.salon.plan, status: match.salon.status, colorPalette: match.salon.colorPalette ?? null },
+              { id: match.salonId, name: match.salon.name, slug: match.salon.slug, plan: match.salon.plan, status: match.salon.status, trialEndsAt: match.salon.trialEndsAt, colorPalette: match.salon.colorPalette ?? null, paymentMethods: match.salon.paymentMethods },
               match.role,
               match.id
             )
@@ -109,7 +111,7 @@ export default function SalonLayout() {
                 headers: { 'x-salon-id': match.salonId },
               })
               let permissions = null
-              if ((perfil.Role === 'Profissional' || perfil.Role === 'Admin')) {
+              if (['Profissional', 'Servico'].includes(perfil.Role)) {
                 permissions = await api.get(`/professional/${perfil.UUID}/permissions`, {
                   headers: { 'x-salon-id': match.salonId },
                 }).then(r => r.data.data).catch(() => null)
@@ -159,6 +161,11 @@ export default function SalonLayout() {
       Carregando salão…
     </div>
   )
+
+  // Trial encerrado ou pagamento pendente: uma tela só, no lugar de qualquer página do salão
+  // (as públicas seguem no ar)
+  const blocked = !isPublicRoute && paywallReason(salon)
+  if (blocked) return <PaywallScreen reason={blocked} />
 
   return <Outlet />
 }

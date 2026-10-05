@@ -12,6 +12,7 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { formatDate } from '@/lib/format'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -22,12 +23,6 @@ const TABS = [
   { id: 'concluidos', label: 'Concluídos', statuses: ['concluido'] },
   { id: 'cancelados', label: 'Cancelados', statuses: ['cancelado'] },
 ]
-
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.split('-')
-  return `${d}/${m}/${y}`
-}
 
 export default function MinhaAgenda() {
   const { salonSlug } = useParams()

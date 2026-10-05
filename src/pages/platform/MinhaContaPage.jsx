@@ -8,14 +8,15 @@ import { authClient } from '@/lib/authClient'
 import Icon from '@/components/ui/Icons'
 import Chip from '@/components/ui/Chip'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
+import PhoneChangeField from '@/components/ui/PhoneChangeField'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 const STATUS_OPTIONS = ['', 'pendente', 'confirmado', 'concluido', 'cancelado']
-const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente' }
+const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-const TABS = ['agendamentos', 'perfil', 'seguranca', 'preferencias']
-const TAB_LABELS = { agendamentos: 'Agendamentos', perfil: 'Perfil', seguranca: 'Segurança', preferencias: 'Preferências' }
+const TABS = ['agendamentos', 'perfil', 'seguranca']
+const TAB_LABELS = { agendamentos: 'Agendamentos', perfil: 'Perfil', seguranca: 'Segurança' }
 
 function fmtDateParts(str) {
   if (!str) return { day: '—', month: '', year: '' }
@@ -168,7 +169,6 @@ function TabAgendamentos({ appointments, members, hasMore, loadingMore, onLoadMo
 // ── Tab: Perfil ─────────────────────────────────────────────────────────────
 function TabPerfil({ profile, onSaved }) {
   const [name, setName] = useState(profile?.name ?? '')
-  const [phone, setPhone] = useState(profile?.phone ?? '')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
 
@@ -177,7 +177,7 @@ function TabPerfil({ profile, onSaved }) {
     setSaving(true)
     setMsg(null)
     try {
-      const { data } = await platformApi.patch('/platform/me', { name: name.trim(), phone: phone.trim() || null })
+      const { data } = await platformApi.patch('/platform/me', { name: name.trim() })
       onSaved(data)
       setMsg({ type: 'ok', text: 'Perfil atualizado.' })
     } catch {
@@ -199,11 +199,7 @@ function TabPerfil({ profile, onSaved }) {
           value={profile?.email ?? ''} readOnly />
         <span style={{ fontSize: 11, color: '#b09080' }}>O e-mail não pode ser alterado aqui.</span>
       </Field>
-      <Field label="Telefone">
-        <input style={inputStyle} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(11) 9 9999-0000"
-          onFocus={e => e.target.style.borderColor = '#8b4a2b'}
-          onBlur={e => e.target.style.borderColor = 'rgba(139,74,43,0.18)'} />
-      </Field>
+      <PhoneChangeField />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
         <SaveBtn loading={saving} />
         {msg && <span style={{ fontSize: 12.5, color: msg.type === 'ok' ? '#4a6b3e' : '#8b3a32' }}>{msg.text}</span>}
@@ -324,106 +320,6 @@ function TabSeguranca() {
   )
 }
 
-// ── Tab: Preferências ───────────────────────────────────────────────────────
-const LOCALES = [{ value: 'pt-BR', label: 'Português (Brasil)' }, { value: 'en-US', label: 'English (US)' }]
-const TIMEZONES = [
-  { value: 'America/Sao_Paulo', label: 'Brasília (UTC-3)' },
-  { value: 'America/Manaus', label: 'Manaus (UTC-4)' },
-  { value: 'America/Belem', label: 'Belém (UTC-3)' },
-  { value: 'America/Fortaleza', label: 'Fortaleza (UTC-3)' },
-  { value: 'America/Recife', label: 'Recife (UTC-3)' },
-  { value: 'America/Noronha', label: 'Fernando de Noronha (UTC-2)' },
-  { value: 'America/Porto_Velho', label: 'Porto Velho (UTC-4)' },
-  { value: 'America/Rio_Branco', label: 'Rio Branco (UTC-5)' },
-  { value: 'UTC', label: 'UTC' },
-]
-
-function TabPreferencias({ profile, onSaved }) {
-  const [locale, setLocale] = useState(profile?.locale ?? 'pt-BR')
-  const [timezone, setTimezone] = useState(profile?.timezone ?? 'America/Sao_Paulo')
-  const [emailPrefs, setEmailPrefs] = useState(() => {
-    try { return typeof profile?.emailPrefs === 'object' ? profile.emailPrefs : JSON.parse(profile?.emailPrefs ?? '{}') }
-    catch { return { marketing: true, transactional: true } }
-  })
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState(null)
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setSaving(true)
-    setMsg(null)
-    try {
-      const { data } = await platformApi.patch('/platform/me', { locale, timezone, emailPrefs })
-      onSaved(data)
-      setMsg({ type: 'ok', text: 'Preferências salvas.' })
-    } catch {
-      setMsg({ type: 'err', text: 'Erro ao salvar.' })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const selectStyle = { ...inputStyle, height: 40, cursor: 'pointer', appearance: 'none', paddingRight: 32,
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b09080' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
-  }
-
-  function Toggle({ checked, onChange, label, description }) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: '14px 0', borderBottom: '1px solid rgba(139,74,43,0.07)' }}>
-        <div>
-          <div style={{ fontSize: 13.5, fontWeight: 500, color: '#2a1e18' }}>{label}</div>
-          {description && <div style={{ fontSize: 12, color: '#b09080', marginTop: 2 }}>{description}</div>}
-        </div>
-        <button type="button" onClick={() => onChange(!checked)}
-          style={{
-            width: 38, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', flexShrink: 0,
-            background: checked ? '#8b4a2b' : 'rgba(139,74,43,0.15)',
-            position: 'relative', transition: 'background 0.2s',
-          }}>
-          <div style={{
-            width: 16, height: 16, borderRadius: '50%', background: '#fff',
-            position: 'absolute', top: 3, left: checked ? 19 : 3,
-            transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-          }} />
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-      <Field label="Idioma">
-        <div style={{ position: 'relative' }}>
-          <select style={selectStyle} value={locale} onChange={e => setLocale(e.target.value)}
-            onFocus={e => e.target.style.borderColor = '#8b4a2b'} onBlur={e => e.target.style.borderColor = 'rgba(139,74,43,0.18)'}>
-            {LOCALES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-          </select>
-        </div>
-      </Field>
-      <Field label="Fuso horário">
-        <div style={{ position: 'relative' }}>
-          <select style={selectStyle} value={timezone} onChange={e => setTimezone(e.target.value)}
-            onFocus={e => e.target.style.borderColor = '#8b4a2b'} onBlur={e => e.target.style.borderColor = 'rgba(139,74,43,0.18)'}>
-            {TIMEZONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-        </div>
-      </Field>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11.5, fontWeight: 500, color: '#8b7267', letterSpacing: '0.04em', marginBottom: 8 }}>Notificações por e-mail</div>
-        <Toggle checked={emailPrefs.transactional ?? true} label="Transacionais" description="Confirmações de agendamento, lembretes, alertas de conta."
-          onChange={v => setEmailPrefs(p => ({ ...p, transactional: v }))} />
-        <Toggle checked={emailPrefs.marketing ?? true} label="Marketing" description="Novidades, promoções e conteúdo da plataforma."
-          onChange={v => setEmailPrefs(p => ({ ...p, marketing: v }))} />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-        <SaveBtn loading={saving} />
-        {msg && <span style={{ fontSize: 12.5, color: msg.type === 'ok' ? '#4a6b3e' : '#8b3a32' }}>{msg.text}</span>}
-      </div>
-    </form>
-  )
-}
-
 // ── Main ────────────────────────────────────────────────────────────────────
 export default function MinhaContaPage() {
   const navigate = useNavigate()
@@ -493,7 +389,7 @@ export default function MinhaContaPage() {
           <div style={{ width: 26, height: 26, borderRadius: 6, background: '#8b4a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontFamily: "'Inter', serif", color: '#fff', fontSize: 14, lineHeight: 1 }}>D</span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#2a1e18', letterSpacing: '-0.01em' }}>Dauth Platform</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#2a1e18', letterSpacing: '-0.01em' }}>Dauth</span>
         </Link>
         <nav style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <Link to="/marketplace" style={{ fontSize: 13, color: '#8b7267', textDecoration: 'none' }}
@@ -615,7 +511,6 @@ export default function MinhaContaPage() {
           )}
           {activeTab === 'perfil'        && <TabPerfil profile={profile} onSaved={data => setProfile(p => ({ ...p, ...data }))} />}
           {activeTab === 'seguranca'     && <TabSeguranca />}
-          {activeTab === 'preferencias'  && <TabPreferencias profile={profile} onSaved={data => setProfile(p => ({ ...p, ...data }))} />}
         </main>
       </div>
 

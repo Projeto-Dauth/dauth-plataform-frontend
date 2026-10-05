@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Children, isValidElement, cloneElement } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Icon from '@/components/ui/Icons'
@@ -12,6 +12,8 @@ import useSalonStore from '@/store/salonStore'
 import { navItemsByRole } from '@/config/navItems'
 import { PLANS, salonHasFeature, planRequiredFor } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
+import { formatPhoneOrLandline } from '@/lib/phone'
+import { PAYMENT_METHODS } from '@/config/paymentMethods'
 
 const PALETTE_VARS = {
   terracota: {
@@ -61,18 +63,150 @@ const PALETTES = [
 
 const PLAN_LABELS = Object.fromEntries(PLANS.map(p => [p.id, p.label]))
 
-function maskPhone(value) {
-  const d = value.replace(/\D/g, '').slice(0, 11)
-  if (d.length > 10) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
-  if (d.length > 6)  return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
-  if (d.length > 2)  return `(${d.slice(0,2)}) ${d.slice(2)}`
-  return d
-}
-
 function daysRemaining(trialEndsAt) {
   if (!trialEndsAt) return null
   const diff = new Date(trialEndsAt) - new Date()
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+}
+
+// Fusos: os do Brasil no topo com nome amigável; depois todos os fusos IANA que o navegador conhece,
+// agrupados por região. O backend aceita qualquer fuso válido (isValidTimezone em salonSettings.js).
+const BRAZIL_TIMEZONES = [
+  { id: 'America/Sao_Paulo', label: 'Brasília (maior parte do Brasil)' },
+  { id: 'America/Noronha', label: 'Fernando de Noronha' },
+  { id: 'America/Manaus', label: 'Amazonas, Rondônia e Roraima' },
+  { id: 'America/Cuiaba', label: 'Mato Grosso e Mato Grosso do Sul' },
+  { id: 'America/Rio_Branco', label: 'Acre' },
+]
+const REGION_LABEL = {
+  Africa: 'África', America: 'América', Antarctica: 'Antártida', Arctic: 'Ártico', Asia: 'Ásia',
+  Atlantic: 'Atlântico', Australia: 'Austrália', Europe: 'Europa', Indian: 'Oceano Índico', Pacific: 'Pacífico',
+}
+
+function utcOffset(tz) {
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' })
+      .formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value ?? ''
+    return name.replace('GMT', 'UTC')
+  } catch {
+    return ''
+  }
+}
+
+const TIMEZONE_GROUPS = (() => {
+  const brazil = new Set(BRAZIL_TIMEZONES.map(t => t.id))
+  const groups = {}
+  for (const tz of Intl.supportedValuesOf?.('timeZone') ?? []) {
+    if (brazil.has(tz)) continue
+    const [region, ...rest] = tz.split('/')
+    const key = rest.length ? region : 'Outros'
+    const city = (rest.length ? rest.join(' / ') : tz).replace(/_/g, ' ')
+    ;(groups[key] ??= []).push({ id: tz, label: `${city} (${utcOffset(tz)})` })
+  }
+  return Object.entries(groups).sort(([a], [b]) => (REGION_LABEL[a] ?? a).localeCompare(REGION_LABEL[b] ?? b))
+})()
+const SLOT_OPTIONS = [10, 15, 20, 30, 45, 60]
+const MIN_ADVANCE_OPTIONS = [
+  [0, 'Sem mínimo'], [30, '30 minutos'], [60, '1 hora'], [120, '2 horas'], [180, '3 horas'],
+  [360, '6 horas'], [720, '12 horas'], [1440, '1 dia'], [2880, '2 dias'],
+]
+const MAX_DAYS_OPTIONS = [[null, 'Sem limite'], [7, '7 dias à frente'], [15, '15 dias à frente'], [30, '30 dias à frente'], [60, '60 dias à frente'], [90, '90 dias à frente']]
+const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+const TABS = [
+  { id: 'geral', label: 'Geral' },
+  { id: 'agendamento', label: 'Agendamento' },
+  { id: 'pagamentos', label: 'Pagamentos' },
+  { id: 'publica', label: 'Página pública' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'plano', label: 'Plano' },
+]
+const TABS_WITHOUT_SAVE = ['whatsapp', 'plano']
+
+// businessHours (API: [{ weekday, open, close }] | null) <-> 7 linhas editáveis
+const toHourRows = (hours) => WEEKDAYS.map((_, weekday) => {
+  const h = (hours ?? []).find(x => x.weekday === weekday)
+  return { weekday, isOpen: Boolean(h), open: h?.open ?? '09:00', close: h?.close ?? '18:00' }
+})
+const fromHourRows = (rows) => {
+  const open = rows.filter(r => r.isOpen).map(({ weekday, open, close }) => ({ weekday, open, close }))
+  return open.length ? open : null
+}
+
+function editableFromConfig(d) {
+  return {
+    form: {
+      name: d.name ?? '', phone: d.phone ?? '', address: d.address ?? '',
+      description: d.description ?? '', colorPalette: d.colorPalette ?? 'terracota',
+    },
+    settings: {
+      timezone: d.timezone, instagram: d.instagram ?? '', showPrices: d.showPrices, showTeam: d.showTeam,
+      bookingEnabled: d.bookingEnabled, bookingSlotMinutes: d.bookingSlotMinutes, bookingMinAdvanceMinutes: d.bookingMinAdvanceMinutes,
+      bookingMaxDaysAhead: d.bookingMaxDaysAhead, bookingAutoConfirm: d.bookingAutoConfirm, paymentMethods: d.paymentMethods,
+    },
+    hourRows: toHourRows(d.businessHours),
+  }
+}
+
+const sectionStyle = { background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }
+
+function Section({ title, description, children }) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: description ? '0 0 6px' : '0 0 18px' }}>
+        {title}
+      </h2>
+      {description && <p style={{ fontSize: 13, color: 'rgb(var(--ink-3))', marginBottom: 18 }}>{description}</p>}
+      {/* Cada item separado por espaço + linha fina */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {Children.toArray(children).filter(Boolean).map((child, i, items) => (
+          <div key={i} style={{
+            paddingTop: i === 0 ? 0 : 20,
+            paddingBottom: i === items.length - 1 ? 0 : 20,
+            borderTop: i === 0 ? 'none' : '1px solid rgb(var(--line-2))',
+          }}>
+            {child}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Switch({ checked, onChange, 'aria-label': ariaLabel }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      onClick={() => onChange(!checked)}
+      style={{
+        position: 'relative', width: 40, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
+        border: 'none', padding: 0, transition: 'background .18s',
+        background: checked ? 'rgb(var(--brand))' : 'rgb(var(--line-2))',
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: '50%',
+        background: '#fff', boxShadow: '0 1px 3px rgb(0 0 0 / 0.2)', transition: 'transform .18s',
+        transform: checked ? 'translateX(16px)' : 'translateX(0)',
+      }} />
+    </button>
+  )
+}
+
+// Linha "título + explicação ........ controle"
+function SettingRow({ title, hint, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ fontSize: 13.5, fontWeight: 600, color: 'rgb(var(--ink))', margin: 0 }}>{title}</p>
+        {hint && <p style={{ fontSize: 12, color: 'rgb(var(--ink-3))', marginTop: 2 }}>{hint}</p>}
+      </div>
+      {/* O título da linha vira o nome acessível do controle (leitor de tela e testes E2E) */}
+      {isValidElement(children) ? cloneElement(children, { 'aria-label': title }) : children}
+    </div>
+  )
 }
 
 function SkeletonRow() {
@@ -95,6 +229,22 @@ export default function AdminConfiguracoes() {
   const [saving, setSaving] = useState(false)
   const [config, setConfig] = useState(null)
   const [form, setForm] = useState({ name: '', phone: '', address: '', description: '', colorPalette: 'terracota' })
+  const [settings, setSettings] = useState(null) // configs de agendamento, pagamento e página pública
+  const [hourRows, setHourRows] = useState(() => toHourRows(null))
+  const [tab, setTab] = useState('geral')
+  const setSetting = (key, value) => setSettings(s => ({ ...s, [key]: value }))
+  // Alterações não salvas = estado da tela diferente do último estado salvo
+  const [savedSnapshot, setSavedSnapshot] = useState(null)
+  const isDirty = savedSnapshot !== null && JSON.stringify({ form, settings, hourRows }) !== savedSnapshot
+
+  function applyConfig(d) {
+    const e = editableFromConfig(d)
+    setConfig(d)
+    setForm(e.form)
+    setSettings(e.settings)
+    setHourRows(e.hourRows)
+    setSavedSnapshot(JSON.stringify(e))
+  }
   const savedPaletteRef = useRef(salon?.colorPalette ?? 'terracota')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState(null)
@@ -130,17 +280,7 @@ export default function AdminConfiguracoes() {
   useEffect(() => {
     if (!salonId) return
     platformApi.get('/salon/config', { headers: { 'x-salon-id': salonId } })
-      .then(r => {
-        const d = r.data
-        setConfig(d)
-        setForm({
-          name:         d.name         ?? '',
-          phone:        d.phone        ?? '',
-          address:      d.address      ?? '',
-          description:  d.description  ?? '',
-          colorPalette: d.colorPalette ?? 'terracota',
-        })
-      })
+      .then(r => applyConfig(r.data))
       .catch(() => addToast('Erro ao carregar configurações', 'error'))
       .finally(() => setLoading(false))
   }, [salonId])
@@ -162,15 +302,21 @@ export default function AdminConfiguracoes() {
     e.preventDefault()
     setSaving(true)
     try {
-      const r = await platformApi.patch('/salon/config', form, { headers: { 'x-salon-id': salonId } })
-      setConfig(r.data)
-      if (salon) setSalon({ ...salon, colorPalette: form.colorPalette }, role, memberId)
+      const payload = { ...form, ...settings, businessHours: fromHourRows(hourRows) }
+      const r = await platformApi.patch('/salon/config', payload, { headers: { 'x-salon-id': salonId } })
+      applyConfig(r.data) // valores normalizados pelo servidor (ex: @ do Instagram) viram o novo "salvo"
+      if (salon) setSalon({ ...salon, colorPalette: form.colorPalette, paymentMethods: r.data.paymentMethods }, role, memberId)
       addToast('Configurações salvas com sucesso!', 'success')
-    } catch {
-      addToast('Erro ao salvar configurações', 'error')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao salvar configurações', 'error')
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleDiscard() {
+    applyConfig(config)
+    applyPaletteVars(config.colorPalette ?? 'terracota')
   }
 
   const inputStyle = {
@@ -223,10 +369,31 @@ export default function AdminConfiguracoes() {
         </p>
       </div>
 
+      <div role="tablist" style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgb(var(--line))', marginBottom: 24, overflowX: 'auto' }}>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: '10px 14px', fontSize: 13, fontWeight: 600, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap',
+              background: 'none', border: 'none', cursor: 'pointer',
+              // sublinhado via sombra interna: não ocupa espaço (com margem negativa o overflowX criava barra de rolagem)
+              boxShadow: tab === t.id ? 'inset 0 -2px 0 rgb(var(--brand))' : 'none',
+              color: tab === t.id ? 'rgb(var(--ink))' : 'rgb(var(--ink-3))',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
 
         {/* ── Informações básicas ── */}
-        <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 20px' }}>
             Informações do Salão
           </h2>
@@ -252,7 +419,7 @@ export default function AdminConfiguracoes() {
                     className="cfg-input"
                     style={inputStyle}
                     value={form.phone}
-                    onChange={e => setForm(f => ({ ...f, phone: maskPhone(e.target.value) }))}
+                    onChange={e => setForm(f => ({ ...f, phone: formatPhoneOrLandline(e.target.value) }))}
                     placeholder="(11) 9 0000-0000"
                     type="tel"
                   />
@@ -281,13 +448,34 @@ export default function AdminConfiguracoes() {
                     {form.description.length}/500
                   </p>
                 </div>
+                <div>
+                  <label style={labelStyle}>Fuso horário</label>
+                  <select
+                    className="cfg-input"
+                    style={inputStyle}
+                    value={settings?.timezone ?? 'America/Sao_Paulo'}
+                    onChange={e => setSetting('timezone', e.target.value)}
+                  >
+                    <optgroup label="Brasil">
+                      {BRAZIL_TIMEZONES.map(t => <option key={t.id} value={t.id}>{t.label} ({utcOffset(t.id)})</option>)}
+                    </optgroup>
+                    {TIMEZONE_GROUPS.map(([region, zones]) => (
+                      <optgroup key={region} label={REGION_LABEL[region] ?? region}>
+                        {zones.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: 11, color: 'rgb(var(--ink-4))', marginTop: 4 }}>
+                    Usado para calcular os horários disponíveis no agendamento online.
+                  </p>
+                </div>
               </>
             )}
           </div>
-        </section>
+        </section>}
 
         {/* ── Preferências ── */}
-        <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
             Preferências
           </h2>
@@ -318,10 +506,116 @@ export default function AdminConfiguracoes() {
               }} />
             </button>
           </div>
-        </section>
+        </section>}
+
+        {/* ── Agendamento online ── */}
+        {tab === 'agendamento' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
+          <Section title="Agendamento online" description="Como os clientes agendam sozinhos pela página do salão. Admin e profissionais continuam agendando livremente pela agenda.">
+            <SettingRow title="Permitir agendamento online" hint="Desligado, a página do salão continua no ar, mas sem o botão de agendar.">
+              <Switch checked={settings.bookingEnabled} onChange={v => setSetting('bookingEnabled', v)} />
+            </SettingRow>
+            {settings.bookingEnabled && (
+                <SettingRow title="Confirmar automaticamente" hint="Ligado, o agendamento do cliente já entra confirmado. Desligado, entra como pendente até alguém do salão confirmar.">
+                  <Switch checked={settings.bookingAutoConfirm} onChange={v => setSetting('bookingAutoConfirm', v)} />
+                </SettingRow>
+            )}
+            {settings.bookingEnabled && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+                  <div>
+                    <label style={labelStyle}>Intervalo entre horários</label>
+                    <select className="cfg-input" style={inputStyle} value={settings.bookingSlotMinutes} onChange={e => setSetting('bookingSlotMinutes', Number(e.target.value))}>
+                      {SLOT_OPTIONS.map(m => <option key={m} value={m}>{m} minutos</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Antecedência mínima</label>
+                    <select className="cfg-input" style={inputStyle} value={settings.bookingMinAdvanceMinutes} onChange={e => setSetting('bookingMinAdvanceMinutes', Number(e.target.value))}>
+                      {MIN_ADVANCE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Agendar até</label>
+                    <select className="cfg-input" style={inputStyle} value={settings.bookingMaxDaysAhead ?? ''} onChange={e => setSetting('bookingMaxDaysAhead', e.target.value === '' ? null : Number(e.target.value))}>
+                      {MAX_DAYS_OPTIONS.map(([v, l]) => <option key={l} value={v ?? ''}>{l}</option>)}
+                    </select>
+                  </div>
+                </div>
+            )}
+          </Section>
+        ))}
+
+        {/* ── Formas de pagamento ── */}
+        {tab === 'pagamentos' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
+          <Section title="Formas de pagamento" description="Só as formas ligadas aparecem na hora de fechar comandas, pedidos e mensalidades.">
+            {PAYMENT_METHODS.map(m => {
+              const checked = settings.paymentMethods.includes(m.id)
+              const isLast = checked && settings.paymentMethods.length === 1
+              return (
+                <SettingRow key={m.id} title={m.label} hint={m.id === 'fiado' ? 'O cliente leva e paga depois — o valor fica em aberto na tela de Mensalistas.' : null}>
+                  <Switch
+                    checked={checked}
+                    onChange={v => {
+                      if (isLast) return addToast('Mantenha pelo menos uma forma de pagamento.', 'error')
+                      setSetting('paymentMethods', v ? [...settings.paymentMethods, m.id] : settings.paymentMethods.filter(x => x !== m.id))
+                    }}
+                  />
+                </SettingRow>
+              )
+            })}
+          </Section>
+        ))}
+
+        {/* ── Página pública ── */}
+        {tab === 'publica' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
+          <Section title="Página pública" description={<>O que os clientes veem em <span style={{ fontFamily: 'monospace' }}>/salao/{salon?.slug}</span> e no agendamento online.</>}>
+            <div>
+              <label style={labelStyle}>Instagram</label>
+              <input
+                className="cfg-input"
+                style={inputStyle}
+                value={settings.instagram}
+                onChange={e => setSetting('instagram', e.target.value)}
+                placeholder="@seusalao"
+              />
+            </div>
+            <SettingRow title="Mostrar preços" hint="Desligado, os serviços aparecem sem valor na página, no marketplace e no agendamento online.">
+              <Switch checked={settings.showPrices} onChange={v => setSetting('showPrices', v)} />
+            </SettingRow>
+            <SettingRow title="Mostrar equipe" hint="Lista na página os profissionais que atendem algum serviço.">
+              <Switch checked={settings.showTeam} onChange={v => setSetting('showTeam', v)} />
+            </SettingRow>
+            <div>
+              <label style={labelStyle}>Horário de funcionamento</label>
+              <p style={{ fontSize: 12, color: 'rgb(var(--ink-3))', margin: '0 0 10px' }}>
+                Só informativo na página do salão — os horários para agendar vêm do expediente de cada profissional. Sem nenhum dia ligado, a seção não aparece.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {hourRows.map((r, i) => {
+                  const update = (patch) => setHourRows(rows => rows.map((x, j) => j === i ? { ...x, ...patch } : x))
+                  const timeStyle = { ...inputStyle, width: 'auto', padding: '7px 10px', fontSize: 13 }
+                  return (
+                    <div key={r.weekday} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minHeight: 36 }}>
+                      <Switch checked={r.isOpen} onChange={v => update({ isOpen: v })} />
+                      <span style={{ width: 72, fontSize: 13.5, fontWeight: 600, color: r.isOpen ? 'rgb(var(--ink))' : 'rgb(var(--ink-4))' }}>{WEEKDAYS[r.weekday]}</span>
+                      {r.isOpen ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="time" className="cfg-input" style={timeStyle} value={r.open} onChange={e => update({ open: e.target.value })} />
+                          <span style={{ fontSize: 12, color: 'rgb(var(--ink-3))' }}>às</span>
+                          <input type="time" className="cfg-input" style={timeStyle} value={r.close} onChange={e => update({ close: e.target.value })} />
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 13, color: 'rgb(var(--ink-4))' }}>Fechado</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </Section>
+        ))}
 
         {/* ── WhatsApp do salão ── */}
-        <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'whatsapp' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 6px' }}>
             WhatsApp do salão
           </h2>
@@ -400,12 +694,12 @@ export default function AdminConfiguracoes() {
               </p>
             </div>
           )}
-        </section>
+        </section>}
 
         {waModalOpen && <WhatsAppLinkModal onClose={() => setWaModalOpen(false)} />}
 
         {/* ── Paleta de cores ── */}
-        <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 6px' }}>
             Paleta de Cores
           </h2>
@@ -446,10 +740,10 @@ export default function AdminConfiguracoes() {
               )
             })}
           </div>
-        </section>
+        </section>}
 
         {/* ── Plano ── */}
-        <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'plano' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
             Informações do Plano
           </h2>
@@ -526,31 +820,57 @@ export default function AdminConfiguracoes() {
               )}
             </div>
           )}
-        </section>
+        </section>}
 
         {/* ── Salvar ── */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        {/* Barra fixa no rodapé: deixa claro que as alterações só valem depois de salvar */}
+        {!TABS_WITHOUT_SAVE.includes(tab) && <div style={{
+          position: 'sticky', bottom: 12, zIndex: 5,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+          padding: '12px 14px 12px 18px', borderRadius: 14,
+          background: 'rgb(var(--surface))',
+          border: `1px solid ${isDirty ? 'rgb(var(--brand) / 0.45)' : 'rgb(var(--line))'}`,
+          boxShadow: '0 8px 28px rgb(var(--ink) / 0.12)', transition: 'border-color .18s',
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: isDirty ? 'rgb(var(--ink))' : 'rgb(var(--ink-3))' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: isDirty ? 'rgb(var(--brand))' : '#4a6b3e' }} />
+            {isDirty ? 'Você tem alterações não salvas' : 'Todas as alterações estão salvas'}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isDirty && !saving && (
+            <button
+              type="button"
+              onClick={handleDiscard}
+              style={{
+                padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, fontFamily: 'Inter, sans-serif',
+                cursor: 'pointer', border: '1.5px solid rgb(var(--line))', background: 'rgb(var(--surface))', color: 'rgb(var(--ink-2))',
+              }}
+            >
+              Descartar
+            </button>
+          )}
           <button
             type="submit"
-            disabled={saving || loading}
+            disabled={saving || loading || !isDirty}
             style={{
-              padding: '11px 28px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-              fontFamily: 'Inter, sans-serif', cursor: saving || loading ? 'not-allowed' : 'pointer',
-              border: 'none', background: saving || loading ? 'rgb(var(--brand) / 0.4)' : 'rgb(var(--brand))',
+              padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+              fontFamily: 'Inter, sans-serif', cursor: saving || loading || !isDirty ? 'not-allowed' : 'pointer',
+              border: 'none', background: saving || loading || !isDirty ? 'rgb(var(--brand) / 0.4)' : 'rgb(var(--brand))',
               color: '#fff', transition: 'background .18s, transform .12s', letterSpacing: '.02em',
               display: 'flex', alignItems: 'center', gap: 8,
             }}
-            onMouseEnter={e => { if (!saving && !loading) e.currentTarget.style.background = 'rgb(var(--brand) / 0.85)' }}
-            onMouseLeave={e => { if (!saving && !loading) e.currentTarget.style.background = 'rgb(var(--brand))' }}
+            onMouseEnter={e => { if (!saving && !loading && isDirty) e.currentTarget.style.background = 'rgb(var(--brand) / 0.85)' }}
+            onMouseLeave={e => { if (!saving && !loading && isDirty) e.currentTarget.style.background = 'rgb(var(--brand))' }}
           >
             {saving ? (
               <>
                 <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />
                 Salvando…
               </>
-            ) : 'Salvar configurações'}
+            ) : 'Salvar alterações'}
           </button>
-        </div>
+          </span>
+        </div>}
       </form>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>

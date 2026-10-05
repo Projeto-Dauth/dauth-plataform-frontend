@@ -17,6 +17,7 @@ import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminCaixaComissoesSteps } from '@/tours/adminCaixaComissoes'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { formatCurrency, formatDate, formatDateTime, toLocalDateStr } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
 
@@ -43,10 +44,6 @@ const METHOD_LABELS = {
   cartao_credito: 'Crédito',
 }
 
-function toLocalDateStr(date) {
-  return date.toLocaleDateString('en-CA')
-}
-
 function getDateRange(preset) {
   if (preset === 'todas' || preset === 'personalizado') return { from: null, to: null }
 
@@ -70,24 +67,6 @@ function getDateRange(preset) {
 
   const start = new Date(today.getFullYear(), today.getMonth(), 1)
   return { from: toLocalDateStr(start), to }
-}
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  // Data pura (YYYY-MM-DD, ex: data do agendamento) NÃO pode passar por new Date(): o JS lê como meia-noite UTC
-  // e no Brasil (UTC-3) exibe o dia anterior. Timestamps com hora (data do pagamento) continuam via Date.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso.split('-').reverse().join('/')
-  return new Date(iso).toLocaleDateString('pt-BR')
-}
-
-function formatDateTime(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 function groupByProfessional(transactions) {
@@ -602,7 +581,7 @@ export default function AdminComissoes() {
         total_amount: totalAmount,
       })
       const n = res.data.paid
-      addToast(`${n} comissão${n !== 1 ? 'ões' : ''} marcada${n !== 1 ? 's' : ''} como repassada${n !== 1 ? 's' : ''}`, 'success')
+      addToast(`${n} ${n !== 1 ? 'comissões' : 'comissão'} marcada${n !== 1 ? 's' : ''} como repassada${n !== 1 ? 's' : ''}`, 'success')
       setPagarModal(null)
       reload()
     } catch (err) {

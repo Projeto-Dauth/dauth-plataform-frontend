@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Avatar from '@/components/ui/Avatar'
-import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import ComboCard from '@/components/ui/ComboCard'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -13,6 +12,7 @@ import api from '@/lib/api'
 import { useTour } from '@/hooks/useTour'
 import { clienteCombosSteps } from '@/tours/clienteCombosTour'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 const navItemsFor = (salonSlug) => [
   { to: `/${salonSlug}/cliente`, end: true, icon: 'cal', label: 'Início' },
@@ -21,16 +21,6 @@ const navItemsFor = (salonSlug) => [
   { to: `/${salonSlug}/cliente/comandas`, icon: 'cash', label: 'Minhas comandas' },
   { to: `/${salonSlug}/perfil`, icon: 'users', label: 'Perfil e senha' },
 ]
-
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.split('T')[0].split('-')
-  return `${d}/${m}/${y}`
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
 
 function ExplorarCard({ pkg }) {
   const items = pkg.items ?? []

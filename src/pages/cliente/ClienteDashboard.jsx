@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, NavLink, useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { NavLink, useParams } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
@@ -12,6 +12,7 @@ import api from '@/lib/api'
 import { useTour } from '@/hooks/useTour'
 import { clienteSteps } from '@/tours/clienteTour'
 import { useToast } from '@/context/ToastContext'
+import { formatDate } from '@/lib/format'
 
 
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -28,12 +29,6 @@ const statusLabel = {
   pendente: 'Pendente',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
-}
-
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.split('-')
-  return `${d}/${m}/${y}`
 }
 
 function InfoRow({ label, value }) {
@@ -146,7 +141,7 @@ function AppointmentPanel({ id, onClose, onCancelled }) {
               confirmCancel ? (
                 <div className="bg-surface border border-danger/30 rounded-xl p-4 flex flex-col gap-3">
                   <p className="text-[13px] text-ink-2 leading-relaxed">
-                    Tem certeza? Cancelamentos com menos de 3 horas de antecedência geram uma cobrança pelo valor do serviço.
+                    Tem certeza que deseja cancelar este agendamento?
                   </p>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" className="flex-1 justify-center" onClick={() => setConfirmCancel(false)} disabled={cancelling}>
@@ -184,7 +179,6 @@ function daysUntil(dateStr) {
 
 
 export default function ClienteDashboard() {
-  const navigate = useNavigate()
   const { salonSlug } = useParams()
   const { user } = useAuthStore()
 

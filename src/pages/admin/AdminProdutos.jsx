@@ -11,13 +11,9 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { formatPrice } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
-
-function formatPrice(p) {
-  if (!p && p !== 0) return '—'
-  return `R$ ${Number(p).toFixed(2).replace('.', ',')}`
-}
 
 const EMPTY = { Name: '', Description: '', Price: '', Stock: '' }
 

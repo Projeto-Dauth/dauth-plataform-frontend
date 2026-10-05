@@ -15,23 +15,17 @@ import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import { excludeMonitorAdmins } from '@/config/monitorAdmins'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatDuration, formatPrice } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
 
-function formatDuration(d) {
-  const [h, m] = d.split(':').map(Number)
-  if (h > 0 && m > 0) return `${h}h ${m}min`
-  if (h > 0) return `${h}h`
-  return `${m} min`
-}
-
-function formatPrice(p) {
-  if (!p && p !== 0) return '—'
-  return `R$ ${Number(p).toFixed(2).replace('.', ',')}`
-}
-
 const EMPTY_SERVICE = { Name: '', Duration: '01:00', Commission: '', Assistant_commission: '', Price: '', Category: '' }
 const EMPTY_CATEGORY = { Name: '' }
+
+// Serviço sem comissão definida (criado pela conta de serviço): a profissional recebe 0% até o Admin definir.
+function CommissionPending() {
+  return <span className="inline-flex items-center px-2 py-[1px] rounded-full text-[10.5px] font-medium bg-danger-soft text-danger">Comissão pendente</span>
+}
 
 export default function AdminServicos() {
   const { salonSlug } = useParams()
@@ -44,6 +38,8 @@ export default function AdminServicos() {
   // Só-visualizar (view sem manage): vê a comissão, mas não edita nem reenvia. Criar
   // serviço também exige manage — definir a comissão faz parte da criação.
   const canEditCommission = can('Comissoes', 'manage')
+  // Conta de serviço (notebook) cria serviço sem comissão — fica "pendente" até o Admin definir.
+  const isServiceAccount = user?.role === 'Servico'
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -343,7 +339,7 @@ export default function AdminServicos() {
           <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Serviços</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie os serviços e categorias do salão</p>
         </div>
-        {(tab !== 'servicos' || canEditCommission) && (
+        {(tab !== 'servicos' || canEditCommission || isServiceAccount) && (
         <Button size="sm" onClick={tab === 'servicos' ? openCreateSvc : openCreateCat}>
           <Icon name="plus" size={14} />
           {tab === 'servicos' ? 'Novo serviço' : 'Nova categoria'}
@@ -368,7 +364,7 @@ export default function AdminServicos() {
       {/* ── TAB SERVIÇOS ─────────────────────────────────────────────── */}
       {tab === 'servicos' && (
         loadingServices ? <PageSpinner /> : services.length === 0 ? (
-          <EmptyState icon="scissors" title="Nenhum serviço" description="Crie o primeiro serviço do salão." action={canEditCommission ? openCreateSvc : undefined} actionLabel="Novo serviço" />
+          <EmptyState icon="scissors" title="Nenhum serviço" description="Crie o primeiro serviço do salão." action={canEditCommission || isServiceAccount ? openCreateSvc : undefined} actionLabel="Novo serviço" />
         ) : (
           <>
             {/* Desktop table */}
@@ -392,7 +388,7 @@ export default function AdminServicos() {
                       </td>
                       <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{formatDuration(svc.Duration)}</td>
                       <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2"><MoneyValue>{formatPrice(svc.Price)}</MoneyValue></td>
-                      {showCommission && <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{svc.Commission}%</td>}
+                      {showCommission && <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{svc.Commission == null ? <CommissionPending /> : `${svc.Commission}%`}</td>}
                       <td className="px-3.5 py-3 border-b border-line-2">
                         <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
                           <Icon name="users" size={13} />Gerenciar
@@ -423,7 +419,7 @@ export default function AdminServicos() {
                   </div>
                   <div className="flex items-center gap-3 text-[12px] text-ink-3 mb-3">
                     <span>{formatDuration(svc.Duration)}</span>
-                    {showCommission && <><span>·</span><span>Comissão {svc.Commission}%</span></>}
+                    {showCommission && <><span>·</span>{svc.Commission == null ? <CommissionPending /> : <span>Comissão {svc.Commission}%</span>}</>}
                   </div>
                   <div className="flex items-center gap-2 pt-3 border-t border-line-2">
                     <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer flex-1">

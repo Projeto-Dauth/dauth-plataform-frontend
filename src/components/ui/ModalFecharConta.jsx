@@ -7,12 +7,9 @@ import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
 import { useToast } from '@/context/ToastContext'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate, formatTime } from '@/lib/format'
 
 const inputClsAddProd = 'h-[38px] px-3 rounded-md border border-line bg-surface text-ink-2 text-[13px] placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors w-full'
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 
 // Data/hora calculadas no navegador (não no servidor) — evita o bug de fuso horário já
 // documentado no projeto quando "agora" é calculado no backend.
@@ -22,17 +19,6 @@ function nowDateAndTime() {
     date: now.toLocaleDateString('en-CA'),
     time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
   }
-}
-
-function formatTime(t) {
-  if (!t) return '—'
-  return t.slice(0, 5)
-}
-
-function formatDate(d) {
-  if (!d) return '—'
-  const [y, m, day] = d.split('-')
-  return `${day}/${m}/${y}`
 }
 
 export default function ModalFecharConta({ client, paying, onClose, onConfirm }) {
@@ -652,6 +638,7 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
             <>
               <div className="px-5 py-3 border-b border-line shrink-0">
                 <select
+                  aria-label="Profissional do serviço"
                   value={selectedProfessionalId}
                   onChange={e => { setSelectedProfessionalId(e.target.value); setServiceSearch('') }}
                   className={inputClsAddProd}

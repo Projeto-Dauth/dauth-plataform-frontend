@@ -7,13 +7,9 @@ import MoneyValue from '@/components/ui/MoneyValue'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { formatPrice } from '@/lib/format'
 
 const navItems = navItemsByRole['Profissional']
-
-function formatPrice(p) {
-  if (!p && p !== 0) return '—'
-  return `R$ ${Number(p).toFixed(2).replace('.', ',')}`
-}
 
 export default function ProfissionalProdutos() {
   const { user } = useAuthStore()

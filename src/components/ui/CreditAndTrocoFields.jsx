@@ -4,10 +4,7 @@ import { usePaymentSplit } from '@/hooks/usePaymentSplit'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
 import PaymentMethodSplit from '@/components/ui/PaymentMethodSplit'
 import MoneyValue from '@/components/ui/MoneyValue'
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+import { formatCurrency } from '@/lib/format'
 
 // Composição de CreditToggleRow + PaymentMethodSplit usada por ModalFecharConta (bloco
 // único, nessa ordem: crédito → "a cobrar" → divisão de método) — reporta pro pai via

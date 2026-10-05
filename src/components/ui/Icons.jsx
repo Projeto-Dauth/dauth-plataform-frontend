@@ -179,7 +179,6 @@ const paths = {
 }
 
 export default function Icon({ name, size = 14, className = '' }) {
-  const isFilled = ['check', 'plus', 'arrowLeft', 'arrowRight', 'filter', 'phone'].includes(name)
   return (
     <svg
       width={size}

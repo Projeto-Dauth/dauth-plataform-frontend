@@ -8,9 +8,9 @@ import Chip from '@/components/ui/Chip'
 import Input from '@/components/ui/Input'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
-import { PageSpinner } from '@/components/ui/Spinner'
 import WhatsAppLinkModal from '@/components/ui/WhatsAppLinkModal'
 import UpgradeModal from '@/components/ui/UpgradeModal'
+import PhoneChangeField from '@/components/ui/PhoneChangeField'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
@@ -18,14 +18,9 @@ import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
 import { salonHasFeature, planRequiredFor } from '@/config/plans'
+import { formatDate } from '@/lib/format'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
-
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
-}
 
 function InfoRow({ label, value }) {
   return (
@@ -51,7 +46,6 @@ export default function MeuPerfil() {
   const [saving, setSaving] = useState(false)
 
   const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
   const [birthday, setBirthday] = useState('')
   const [errors, setErrors] = useState({})
   const [exporting, setExporting] = useState(false)
@@ -74,7 +68,6 @@ export default function MeuPerfil() {
         }
         setProfile(normalized)
         setName(normalized.name ?? '')
-        setPhone(normalized.phone ?? '')
         setBirthday(normalized.birthday ? normalized.birthday.slice(0, 10) : '')
       })
       .catch((err) => {
@@ -96,7 +89,6 @@ export default function MeuPerfil() {
 
   function startEdit() {
     setName(profile.name ?? '')
-    setPhone(profile.phone ?? '')
     setBirthday(profile.birthday ? profile.birthday.slice(0, 10) : '')
     setErrors({})
     setEditing(true)
@@ -139,10 +131,9 @@ export default function MeuPerfil() {
     setSaving(true)
     try {
       const payload = { Name: name.trim() }
-      if (phone.trim()) payload.Phone = phone.trim()
       if (birthday) payload.Birthday = birthday
       await api.patch('/users/perfil/me', payload)
-      const updated = { ...profile, name: name.trim(), phone: phone.trim(), birthday }
+      const updated = { ...profile, name: name.trim(), birthday }
       setProfile(updated)
       restoreSession({ ...user, name: name.trim() })
       setEditing(false)
@@ -359,13 +350,7 @@ export default function MeuPerfil() {
               onChange={e => setName(e.target.value)}
               error={errors.name}
             />
-            <Input
-              label="Telefone"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="(11) 99999-9999"
-              type="tel"
-            />
+            <PhoneChangeField />
             <Input
               label="Data de nascimento"
               value={birthday}

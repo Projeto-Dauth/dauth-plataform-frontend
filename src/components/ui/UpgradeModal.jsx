@@ -6,7 +6,9 @@ import { PLANS, FEATURE_LABEL, formatPlanPrice, planRequiredFor } from '@/config
 // logo após criar o salão, quando o plano já foi decidido no formulário de criação.
 // `feature`: id da feature travada que abriu o modal (ex: 'produtos') — mostra qual plano a libera
 // e destaca o item na lista de cada plano.
-export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan = false, onClose, onActivated }) {
+// `inline`: mesmo conteúdo como tela (sem fundo escuro e sem fechar) — usado na tela de trial encerrado.
+// `title`/`subtitle`: substituem o título da escolha de plano.
+export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan = false, inline = false, title, subtitle, onClose, onActivated }) {
   const featureLabel = feature ? FEATURE_LABEL[feature] : null
   const requiredPlan = feature ? planRequiredFor(feature) : null
   const [step, setStep] = useState(lockPlan ? 'pay' : 'pick')
@@ -58,7 +60,7 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
         const r = await platformApi.get('/salon', { headers: { 'x-salon-id': salonId } })
         if (payingPlanRef.current && r.data?.status === 'active' && r.data?.plan === payingPlanRef.current) {
           clearInterval(pollRef.current)
-          onActivated()
+          onActivated(payingPlanRef.current)
         }
       } catch {}
     }, 4000)
@@ -83,27 +85,30 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
     return `${m}:${s}`
   }
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 16,
-    }} onClick={onClose}>
+  function backToPlans() {
+    clearTimeout(timerRef.current)
+    payingPlanRef.current = null
+    setCharge(null)
+    setError(null)
+    setStep('pick')
+  }
+
+  const card = (
       <div style={{
         background: 'rgb(var(--surface))', borderRadius: 20, padding: '32px 28px',
         maxWidth: 460, width: '100%', boxShadow: '0 24px 64px rgb(var(--ink) / 0.18)',
-        position: 'relative', maxHeight: '92vh', overflowY: 'auto',
+        position: 'relative', ...(inline ? {} : { maxHeight: '92vh', overflowY: 'auto' }),
       }} onClick={e => e.stopPropagation()}>
 
         {/* Fechar */}
-        <button onClick={onClose} style={{
+        {onClose && <button onClick={onClose} aria-label="Fechar" style={{
           position: 'absolute', top: 16, right: 16, background: 'none', border: 'none',
           cursor: 'pointer', color: 'rgb(var(--ink-3))', padding: 4, borderRadius: 6,
         }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M2 2l12 12M14 2L2 14" />
           </svg>
-        </button>
+        </button>}
 
         {/* Header */}
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgb(var(--brand))', marginBottom: 4 }}>
@@ -113,8 +118,11 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
         {step === 'pick' ? (
           <>
             <h2 style={{ fontFamily: 'Inter, Georgia, serif', fontSize: 24, fontWeight: 600, color: 'rgb(var(--ink))', margin: '0 0 16px' }}>
-              {featureLabel ? `${featureLabel} não está no seu plano` : 'Escolha seu plano'}
+              {title ?? (featureLabel ? `${featureLabel} não está no seu plano` : 'Escolha seu plano')}
             </h2>
+            {subtitle && (
+              <p style={{ fontSize: 13, color: 'rgb(var(--ink-2))', margin: '-8px 0 16px', lineHeight: 1.5 }}>{subtitle}</p>
+            )}
             {featureLabel && requiredPlan && (
               <p style={{ fontSize: 13, color: 'rgb(var(--ink-2))', margin: '-8px 0 16px', lineHeight: 1.5 }}>
                 <strong>{featureLabel}</strong> está disponível a partir do plano <strong>{requiredPlan.label}</strong>.
@@ -222,7 +230,7 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
             {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_SIMULATE === 'true') && (
               <button onClick={async () => {
                 const r = await platformApi.post('/salon/checkout/simulate', { chargeId: charge.id, plan: selectedPlan }, { headers: { 'x-salon-id': salonId } })
-                if (r.data?.ok) onActivated()
+                if (r.data?.ok) onActivated(selectedPlan)
               }} style={{
                 width: '100%', marginTop: 8, padding: '8px', borderRadius: 8, fontSize: 12,
                 fontFamily: 'Inter, monospace', cursor: 'pointer',
@@ -238,9 +246,28 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
             {error || 'Erro ao gerar cobrança. Tente novamente.'}
           </p>
         )}
+        {/* Na tela não há "fechar": volta para a lista para trocar de plano */}
+        {inline && !lockPlan && (
+          <button onClick={backToPlans} style={{
+            width: '100%', marginTop: 12, padding: '8px', background: 'none', border: 'none',
+            fontSize: 13, color: 'rgb(var(--ink-3))', cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+          }}>
+            Escolher outro plano
+          </button>
+        )}
         </>
         )}
       </div>
+  )
+
+  if (inline) return card
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }} onClick={onClose}>
+      {card}
     </div>
   )
 }

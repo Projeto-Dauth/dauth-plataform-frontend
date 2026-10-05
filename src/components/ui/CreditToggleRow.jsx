@@ -1,8 +1,5 @@
 import MoneyValue from '@/components/ui/MoneyValue'
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+import { formatCurrency } from '@/lib/format'
 
 // Linha "Crédito R$X disponível" + checkbox pra usar — recebe o objeto retornado por
 // useCreditAndTroco(). Renderiza nada quando o cliente não tem saldo. `editable=false`
@@ -29,6 +26,7 @@ export default function CreditToggleRow({ cr, className = 'py-3.5 border-b borde
         <input
           type="text"
           inputMode="decimal"
+          aria-label="Crédito (valor a usar)"
           value={cr.creditAmount}
           onChange={e => cr.setCreditAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
           onClick={e => e.stopPropagation()}

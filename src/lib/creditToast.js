@@ -1,7 +1,4 @@
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
+import { formatCurrency } from '@/lib/format'
 // Resume, numa frase só, o que aconteceu de crédito/troco num POST /tab/batch-pay —
 // usado pelos 6 callers de ModalFecharConta pra anexar essa informação ao toast de sucesso.
 export function batchPayExtraMessage(data) {

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import api from '@/lib/api'
 import logo from '@/logo-dauth-agendamentos.png'
+import { formatPhone } from '@/lib/phone'
 
 export default function EsqueciSenhaPage() {
   const [sent, setSent] = useState(false)
@@ -33,7 +34,6 @@ export default function EsqueciSenhaPage() {
         <div className="flex flex-col items-center mb-8">
           <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
           <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Agendamentos</h1>
-          <p className="text-ink-3 text-[13px] mt-1">Salão da Candi</p>
         </div>
 
         <div className="bg-surface border border-line rounded-[14px] p-8">
@@ -118,10 +118,3 @@ export default function EsqueciSenhaPage() {
   )
 }
 
-function formatPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-  if (digits.length <= 3) return `(${digits.slice(0, 2)}) ${digits[2]}`
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits[2]} ${digits.slice(3)}`
-  return `(${digits.slice(0, 2)}) ${digits[2]} ${digits.slice(3, 7)}-${digits.slice(7)}`
-}

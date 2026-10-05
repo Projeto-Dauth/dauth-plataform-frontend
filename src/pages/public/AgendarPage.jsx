@@ -10,22 +10,16 @@ import useSalonStore from '@/store/salonStore'
 import api from '@/lib/api'
 import platformApi from '@/lib/platformApi'
 import logo from '@/logo-dauth-agendamentos.png'
+import { formatCurrency, formatDuration } from '@/lib/format'
+import { formatPhoneOrLandline } from '@/lib/phone'
 
 const STEPS = ['Serviço', 'Profissional', 'Data e hora', 'Seus dados', 'Confirmar']
 const DOWS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
-function formatDuration(duration) {
-  let totalMin = typeof duration === 'number' ? duration : (() => { const [h, m] = String(duration).split(':').map(Number); return h * 60 + (m ?? 0) })()
-  const h = Math.floor(totalMin / 60), m = totalMin % 60
-  if (h > 0 && m > 0) return `${h}h ${m}min`
-  if (h > 0) return `${h}h`
-  return `${m}min`
-}
-
 function formatPrice(price) {
-  if (!price || price === 0) return 'Consultar'
-  return `R$ ${price.toFixed(2).replace('.', ',')}`
+  if (!price) return 'Consultar'
+  return formatCurrency(price)
 }
 
 // Preço de exibição no passo 1 (escolha de serviço) — "a partir de" o menor preço entre
@@ -91,6 +85,16 @@ export default function AgendarPage() {
   const [confirming, setConfirming] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [sameDayConflict, setSameDayConflict] = useState(null)
+
+  // Configurações públicas do salão (Admin → Configurações): agendamento ligado, preços, limite de dias.
+  // O backend também aplica essas regras; aqui é só pra tela não oferecer o que vai ser recusado.
+  const [publicSettings, setPublicSettings] = useState(null)
+  useEffect(() => {
+    if (!salonSlug) return
+    platformApi.get(`/platform/salons/${salonSlug}`).then(({ data }) => setPublicSettings(data)).catch(() => {})
+  }, [salonSlug])
+  const showPrices = publicSettings?.showPrices !== false
+  const bookingOff = publicSettings?.bookingEnabled === false
 
   const svc = services.find((s) => s.UUID === selectedServiceId)
 
@@ -162,6 +166,15 @@ export default function AgendarPage() {
     }
   }, [])
 
+  function isDayTooFar(d) {
+    const max = publicSettings?.bookingMaxDaysAhead
+    if (max == null) return false
+    const limit = new Date()
+    limit.setHours(0, 0, 0, 0)
+    limit.setDate(limit.getDate() + max)
+    return new Date(calYear, calMonth, d) > limit
+  }
+
   function isDayPast(d) {
     const cell = new Date(calYear, calMonth, d)
     cell.setHours(0, 0, 0, 0)
@@ -210,6 +223,8 @@ export default function AgendarPage() {
       await api.post('/auth/login', loginData)
       const { data: perfil } = await api.get('/users/perfil/me')
       login({ id: perfil.UUID, publicId: perfil.UUID, email: perfil.Email, name: perfil.Name, role: perfil.Role })
+      // Pela rota pública o salão entrou no store sem papel; sem isso a área do cliente dá "não autorizado"
+      setSalon(salon, perfil.Role, perfil.UUID)
       setStep(4)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao fazer login', 'error')
@@ -287,6 +302,15 @@ export default function AgendarPage() {
   const dateLabel = selectedDay
     ? `${String(selectedDay).padStart(2, '0')}/${String(calMonth + 1).padStart(2, '0')}/${calYear}`
     : '—'
+
+  if (bookingOff) return (
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center gap-3 px-6 text-center">
+      <Icon name="cal" size={28} />
+      <h2 className="font-display text-[22px] font-medium text-ink">Agendamento online indisponível</h2>
+      <p className="text-sm text-ink-3 max-w-xs">Este salão não está recebendo agendamentos pela internet no momento. Entre em contato direto com o salão.</p>
+      <Link to={`/salao/${salonSlug}`} className="text-sm text-brand hover:underline mt-2">Ver página do salão</Link>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-bg text-ink">
@@ -449,7 +473,7 @@ export default function AgendarPage() {
                       <div className="font-mono text-[11px] md:text-[12px] text-ink-3 flex items-center gap-1">
                         <Icon name="clock" size={12} />{formatDuration(s.Duration)}
                       </div>
-                      <div className="font-display text-[14px] md:text-[15px] font-medium">{formatFromPrice(s.Min_price ?? s.Price)}</div>
+                      {showPrices && <div className="font-display text-[14px] md:text-[15px] font-medium">{formatFromPrice(s.Min_price ?? s.Price)}</div>}
                     </div>
                   </button>
                 ))}
@@ -480,7 +504,7 @@ export default function AgendarPage() {
                     <Avatar name={p.name} index={idx} size="lg" />
                     <div className="flex-1 min-w-0">
                       <div className="font-display font-medium text-[16px] md:text-[17px]">{p.name}</div>
-                      <div className="font-mono text-[12px] text-ink-3 mt-0.5">{formatPrice(p.price)}</div>
+                      {showPrices && <div className="font-mono text-[12px] text-ink-3 mt-0.5">{formatPrice(p.price)}</div>}
                     </div>
                     {selectedProf?.professional_id === p.professional_id && (
                       <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center flex-shrink-0">
@@ -507,10 +531,10 @@ export default function AgendarPage() {
                 <div className="flex justify-between items-center mb-3.5">
                   <div className="font-display font-medium text-[15px] md:text-[16px]">{MONTH_NAMES[calMonth]} {calYear}</div>
                   <div className="flex gap-1">
-                    <button onClick={prevMonth} className="w-[30px] h-[30px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
+                    <button onClick={prevMonth} aria-label="Mês anterior" className="w-[30px] h-[30px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
                       <Icon name="arrowLeft" size={13} />
                     </button>
-                    <button onClick={nextMonth} className="w-[30px] h-[30px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
+                    <button onClick={nextMonth} aria-label="Próximo mês" className="w-[30px] h-[30px] rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
                       <Icon name="arrowRight" size={13} />
                     </button>
                   </div>
@@ -522,7 +546,7 @@ export default function AgendarPage() {
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {calDays.map((d, i) => {
-                    const past = d ? isDayPast(d) : false
+                    const past = d ? isDayPast(d) || isDayTooFar(d) : false
                     return (
                       <button
                         key={i}
@@ -682,8 +706,8 @@ export default function AgendarPage() {
                   { k: 'Profissional', v: selectedProf?.name ?? '—' },
                   { k: 'Data', v: dateLabel },
                   { k: 'Horário', v: selectedSlot?.start_time ?? '—' },
-                  { k: 'Total', v: svc ? formatPrice(selectedProf?.price ?? svc.Price) : '—', total: true },
-                ].map(({ k, v, total }) => (
+                  showPrices && { k: 'Total', v: svc ? formatPrice(selectedProf?.price ?? svc.Price) : '—', total: true },
+                ].filter(Boolean).map(({ k, v, total }) => (
                   <div
                     key={k}
                     className={`flex justify-between items-center py-3 md:py-3.5 border-b border-dashed border-line-2 last:border-0 ${total ? 'pt-3 md:pt-4' : ''}`}
@@ -709,7 +733,7 @@ export default function AgendarPage() {
                 )}
                 <div className="bg-surface-2 border border-line-2 rounded-xl p-4 text-[12px] md:text-[13px] text-ink-2">
                   <Icon name="clock" size={14} className="inline mr-1.5 text-ink-3" />
-                  Pagamento no local. Cancelamentos com menos de 3h de antecedência podem gerar cobrança do serviço.
+                  Pagamento no local.
                 </div>
               </div>
             </div>
@@ -769,18 +793,10 @@ export default function AgendarPage() {
   )
 }
 
-function maskPhone(v) {
-  const d = v.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 2) return d.length ? `(${d}` : ''
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-  return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`
-}
-
 function AuthField({ label, type, placeholder, value, onChange }) {
   function handleChange(e) {
     const raw = e.target.value
-    onChange(type === 'tel' ? maskPhone(raw) : raw)
+    onChange(type === 'tel' ? formatPhoneOrLandline(raw) : raw)
   }
   return (
     <div className="flex flex-col gap-1.5 mb-4">

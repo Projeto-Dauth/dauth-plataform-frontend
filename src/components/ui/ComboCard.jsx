@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import Icon from '@/components/ui/Icons'
+import Button from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 const statusStyle = {
   ativo:     'bg-success-soft text-success',
@@ -14,16 +18,6 @@ const statusLabel = {
   cancelado: 'Cancelado',
 }
 
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.split('T')[0].split('-')
-  return `${d}/${m}/${y}`
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
-
 function ProgressBar({ used, total }) {
   const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0
   return (
@@ -33,9 +27,55 @@ function ProgressBar({ used, total }) {
   )
 }
 
+// Diálogo de conclusão manual: o motivo é obrigatório (fica registrado no pacote).
+function ConcludeDialog({ combo, remaining, loading, onCancel, onConfirm }) {
+  const [note, setNote] = useState('')
+  const valid = note.trim().length >= 3
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={loading ? undefined : onCancel} />
+      <div role="dialog" aria-modal="true" aria-labelledby={`conclude-${combo.UUID}`}
+        className="relative bg-surface rounded-xl p-6 w-full max-w-md shadow-md border border-line mx-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h3 id={`conclude-${combo.UUID}`} className="font-display font-medium text-lg tracking-tight">Concluir pacote manualmente</h3>
+          <button onClick={onCancel} disabled={loading} aria-label="Fechar" className="text-ink-3 hover:text-ink transition-colors mt-0.5 cursor-pointer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <p className="text-[13.5px] text-ink-2 mb-4 leading-relaxed">
+          {remaining > 0
+            ? `${remaining} ${remaining === 1 ? 'sessão restante deixa' : 'sessões restantes deixam'} de valer. `
+            : ''}
+          O pacote fica como concluído e o cliente pode comprar um novo.
+        </p>
+        <label className="flex flex-col gap-1.5 mb-5">
+          <span className="text-[12px] font-medium text-ink-2">Motivo da conclusão</span>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Ex: cliente usou 2 de 5 sessões e não voltou"
+            rows={3}
+            maxLength={500}
+            autoFocus
+            className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+          />
+        </label>
+        <div className="flex gap-2.5 justify-end">
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={loading}>Cancelar</Button>
+          <Button size="sm" onClick={() => onConfirm(note.trim())} disabled={!valid} loading={loading}>Concluir pacote</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Card de pacote adquirido por um cliente — usado tanto na área do cliente (MeusCombos, sem
 // clientName) quanto na visão do Admin (AdminCombos "Pacotes vendidos", com clientName).
-export default function ComboCard({ combo, clientName }) {
+// `onConclude(combo, note)` (telas do salão) mostra "Concluir manualmente" em pacote ativo.
+// `onCancelSale(combo)` (telas do salão) mostra "Cancelar venda" em pacote pendente (vendido e nunca pago).
+export default function ComboCard({ combo, clientName, onConclude, concluding = false, onCancelSale, cancelling = false }) {
+  const [confirming, setConfirming] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
   const pkg = combo.Service_package
   const items = combo.Client_package_items ?? []
   const totalSessions = items.reduce((s, i) => s + i.Total_quantity, 0)
@@ -108,7 +148,43 @@ export default function ComboCard({ combo, clientName }) {
             Sessões são descontadas após a conclusão do atendimento
           </div>
         )}
+        {combo.Manual_conclusion_note && (
+          <div className="text-[12px] text-ink-3 leading-relaxed">
+            <span className="font-medium text-ink-2">Concluído manualmente{combo.Manual_concluded_at ? ` em ${formatDate(combo.Manual_concluded_at)}` : ''}:</span>{' '}
+            {combo.Manual_conclusion_note}
+          </div>
+        )}
       </div>
+
+      {onConclude && combo.Status === 'ativo' && (
+        <div className="mt-4">
+          <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>Concluir manualmente</Button>
+        </div>
+      )}
+      {onCancelSale && combo.Status === 'pendente' && (
+        <div className="mt-4">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(true)}>Cancelar venda</Button>
+        </div>
+      )}
+      <Modal
+        isOpen={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        onConfirm={async () => { if ((await onCancelSale(combo)) !== false) setConfirmCancel(false) }}
+        title="Cancelar venda do pacote"
+        message="O pacote ainda não foi pago. A venda é cancelada e a comanda da compra sai do Caixa — o cliente pode comprar outro pacote depois."
+        confirmLabel="Cancelar venda"
+        cancelLabel="Voltar"
+        loading={cancelling}
+      />
+      {confirming && (
+        <ConcludeDialog
+          combo={combo}
+          remaining={remaining}
+          loading={concluding}
+          onCancel={() => setConfirming(false)}
+          onConfirm={async (note) => { if ((await onConclude(combo, note)) !== false) setConfirming(false) }} // erro: fica aberto com o motivo digitado
+        />
+      )}
     </div>
   )
 }

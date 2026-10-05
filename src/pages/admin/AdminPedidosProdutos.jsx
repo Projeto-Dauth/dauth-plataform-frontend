@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useAcceptedPaymentMethods } from '@/config/paymentMethods'
+import { useState, useEffect } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -15,6 +16,7 @@ import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { formatDate, formatPrice } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
 
@@ -37,17 +39,9 @@ const PAYMENT_LABELS = {
   cartao_debito: 'Débito',
 }
 
-function formatPrice(p) {
-  if (!p && p !== 0) return '—'
-  return `R$ ${Number(p).toFixed(2).replace('.', ',')}`
-}
-
-function formatDate(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
 const EMPTY_ORDER = { Product_id: '', Client_id: '', Quantity: '1', Payment_method: '', Notes: '' }
+
+const ORDER_METHODS = [['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['cartao_credito', 'Cartão de crédito'], ['cartao_debito', 'Cartão de débito']]
 
 export default function AdminPedidosProdutos() {
   const { user } = useAuthStore()
@@ -57,6 +51,7 @@ export default function AdminPedidosProdutos() {
   const [products, setProducts] = useState([])
   const [newDrawer, setNewDrawer] = useState(false)
   const [orderForm, setOrderForm] = useState(EMPTY_ORDER)
+  const acceptedMethods = useAcceptedPaymentMethods()
   const [savingOrder, setSavingOrder] = useState(false)
   const [detailDrawer, setDetailDrawer] = useState(null)
   const [payModal, setPayModal] = useState(null)
@@ -217,7 +212,7 @@ export default function AdminPedidosProdutos() {
                     </td>
                     <td className="px-3.5 py-3 text-right border-b border-line-2">
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="sm" onClick={() => setDetailDrawer(o)}>
+                        <Button variant="ghost" size="sm" onClick={() => setDetailDrawer(o)} aria-label="Ver detalhes">
                           <Icon name="chevronRight" size={13} />
                         </Button>
                       </div>
@@ -325,10 +320,7 @@ export default function AdminPedidosProdutos() {
                   className={inputCls}
                 >
                   <option value="">A definir</option>
-                  <option value="dinheiro">Dinheiro</option>
-                  <option value="pix">Pix</option>
-                  <option value="cartao_credito">Cartão de crédito</option>
-                  <option value="cartao_debito">Cartão de débito</option>
+                  {ORDER_METHODS.filter(([id]) => acceptedMethods.includes(id)).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
                 </select>
               </Field>
               <Field label="Observações (opcional)">

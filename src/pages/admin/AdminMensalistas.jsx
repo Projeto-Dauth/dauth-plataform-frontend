@@ -11,6 +11,7 @@ import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
 
@@ -30,23 +31,6 @@ function monthStr(date) { return `${date.getFullYear()}-${pad2(date.getMonth() +
 function monthLabel(monthStr) {
   const [y, m] = monthStr.split('-').map(Number)
   return `${MONTHS[m - 1]} de ${y}`
-}
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  // Data pura (YYYY-MM-DD) não passa por new Date(): lida como UTC, no Brasil exibiria o dia anterior.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso.split('-').reverse().join('/')
-  return new Date(iso).toLocaleDateString('pt-BR')
-}
-
-function formatDateTime(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 const now = new Date()

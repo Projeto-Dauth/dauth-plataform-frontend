@@ -2,19 +2,7 @@ import { useEffect, useRef } from 'react'
 import Shepherd from 'shepherd.js'
 import 'shepherd.js/dist/css/shepherd.css'
 import api from '@/lib/api'
-
-const KEYS = {
-  admin:                    'dauth_tour_admin',
-  profissional:             'dauth_tour_profissional',
-  cliente:                  'dauth_tour_cliente',
-  admin_caixa_comandas:     'dauth_tour_admin_caixa_comandas',
-  admin_caixa_comissoes:    'dauth_tour_admin_caixa_comissoes',
-  admin_agendamentos:       'dauth_tour_admin_agendamentos',
-  admin_usuarios:           'dauth_tour_admin_usuarios',
-  profissional_comandas:    'dauth_tour_profissional_comandas',
-  cliente_agendamentos:     'dauth_tour_cliente_agendamentos',
-  cliente_combos:           'dauth_tour_cliente_combos',
-}
+import { TOUR_KEYS as KEYS } from '@/config/tours'
 
 export function useTour(role, steps, ready = true) {
   const tourRef  = useRef(null)

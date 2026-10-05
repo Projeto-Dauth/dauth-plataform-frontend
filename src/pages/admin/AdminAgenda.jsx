@@ -22,6 +22,9 @@ import { adminSteps } from '@/tours/adminTour'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import Modal from '@/components/ui/Modal'
 import { outsideWorkingHours, workingHoursLabel, fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
+import { formatPhone } from '@/lib/phone'
+import { TIME_SLOTS, STATUS_STYLE, parseTime, serviceLabel, serviceNames, splitIntoSegments, coversSlot, anchoredToSlot, apptHeight, apptTop, isSlotPast, toDateStr, formatHeader, addMinutes, isBreakStart, coversBreak, spanBreak, leaveCoversSlot, leaveStartsAt, leaveTop, leaveHeight, computeColumns } from '@/lib/agendaGrid'
+import { LeaveContextMenu } from '@/components/agenda/LeaveContextMenu'
 
 // Tinha algum const bugado
 
@@ -144,231 +147,6 @@ const navItems = navItemsByRole['Admin']
 
 // Máximo de profissionais visíveis por vez na grade desktop — acima disso, pagina em vez de espremer colunas / gerar scroll lateral
 const DESK_PAGE_SIZE = 5
-
-// Slots de 30 em 30 min das 06:00 às 00:00
-const TIME_SLOTS = []
-for (let h = 6; h < 24; h++) {
-  TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`)
-  TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`)
-}
-
-const WEEK_DAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
-const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-
-const STATUS_STYLE = {
-  pendente: { card: 'bg-[#dbeafe] border-[#93c5fd] text-[#1d4ed8]', dot: 'bg-[#3b82f6]' },
-  confirmado: { card: 'bg-success-soft border-success/40 text-success', dot: 'bg-success' },
-  concluido: { card: 'bg-[#faecd6] border-gold/50 text-[#7a5c2e]', dot: 'bg-gold' },
-  cancelado: { card: 'bg-danger-soft border-danger/40 text-danger line-through opacity-60', dot: 'bg-danger' },
-}
-
-function parseTime(t) {
-  // "09:00:00+00" | "09:00:00-03" → "09:00"
-  return t.slice(0, 5)
-}
-
-// Bloco fundido tem N serviços (Services[]) — junta os nomes; agendamento normal cai no
-// fallback do campo singular Service.
-function serviceLabel(appt) {
-  return appt.Services?.length > 0 ? appt.Services.map(s => s.Name).join(' + ') : appt.Service
-}
-
-function serviceNames(appt) {
-  return appt.Services?.length > 0 ? appt.Services.map(s => s.Name) : [appt.Service]
-}
-
-function toMinutes(t) {
-  const [h, m] = t.split(':').map(Number)
-  return h * 60 + m
-}
-
-// Um Appointment pode ter um "buraco" no meio de Services[] (ex: o serviço do meio foi
-// reatribuído a outra profissional na edição — sai do bloco via Remove_services, mas
-// Appointment.Start_time/End_time continuam sendo o menor início e o maior fim dos itens
-// que sobraram, então ainda cobrem o horário do item removido). Sem isso, o bloco desenha
-// um retângulo único e contínuo mostrando tempo ocioso que na verdade é de outra
-// profissional. splitIntoSegments quebra o appt em N blocos visuais contíguos a partir dos
-// horários reais de Services[]; sem buraco (ou sem Services[], formato singular antigo)
-// continua virando 1 segmento só, idêntico ao comportamento anterior.
-function splitIntoSegments(appt) {
-  if (!appt.Services?.length) return [appt]
-  const sorted = [...appt.Services].sort((a, b) =>
-    toMinutes(parseTime(a.Start_time ?? appt.Start_time)) - toMinutes(parseTime(b.Start_time ?? appt.Start_time))
-  )
-  const groups = []
-  for (const s of sorted) {
-    const start = s.Start_time ?? appt.Start_time
-    const end = s.End_time ?? appt.End_time
-    const last = groups[groups.length - 1]
-    if (last && toMinutes(parseTime(start)) <= toMinutes(parseTime(last.End_time))) {
-      last.Services.push(s)
-      if (toMinutes(parseTime(end)) > toMinutes(parseTime(last.End_time))) last.End_time = end
-    } else {
-      groups.push({ Start_time: start, End_time: end, Services: [s] })
-    }
-  }
-  if (groups.length <= 1) return [appt]
-  // _original preserva o Appointment inteiro (Start_time/End_time/Services completos) —
-  // ações que operam sobre o registro real (editar, excluir, mudar status, fechar comanda)
-  // devem usar isso, não os campos truncados do segmento visual.
-  return groups.map((g, i) => ({
-    ...appt,
-    Start_time: g.Start_time,
-    End_time: g.End_time,
-    Services: g.Services,
-    _segKey: `${appt.UUID}::${i}`,
-    _original: appt,
-  }))
-}
-
-function coversSlot(appt, slot) {
-  const start = toMinutes(parseTime(appt.Start_time))
-  const end = toMinutes(parseTime(appt.End_time))
-  const s = toMinutes(slot)
-  return s >= start && s < end
-}
-
-function anchoredToSlot(appt, slot) {
-  const startMin = toMinutes(parseTime(appt.Start_time))
-  const slotMin = toMinutes(slot)
-  return startMin >= slotMin && startMin < slotMin + 30
-}
-
-function spanSlots(appt) {
-  const start = toMinutes(parseTime(appt.Start_time))
-  const end = toMinutes(parseTime(appt.End_time))
-  return Math.max(1, Math.ceil((end - start) / 30))
-}
-
-function apptHeight(appt, cellH) {
-  const startMin = toMinutes(parseTime(appt.Start_time))
-  const endMin = toMinutes(parseTime(appt.End_time))
-  return Math.max(cellH / 2 - 4, ((endMin - startMin) / 30) * cellH - 4)
-}
-
-function apptTop(appt, slot, cellH) {
-  const startMin = toMinutes(parseTime(appt.Start_time))
-  const slotMin = toMinutes(slot)
-  return ((startMin - slotMin) / 30) * cellH + 2
-}
-
-function isSlotPast(date, slot) {
-  const now = new Date()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  if (date < today) return true
-  if (date > today) return false
-  // mesmo dia — compara horário
-  const [h, m] = slot.split(':').map(Number)
-  return now.getHours() * 60 + now.getMinutes() > h * 60 + m
-}
-
-function toDateStr(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-function formatHeader(date) {
-  const dow = WEEK_DAYS[date.getDay()]
-  const d = date.getDate()
-  const mon = MONTHS[date.getMonth()]
-  const year = date.getFullYear()
-  return `${dow.charAt(0).toUpperCase() + dow.slice(1)}, ${d} de ${mon} de ${year}`
-}
-
-function addMinutes(timeStr, mins) {
-  const [h, m] = timeStr.split(':').map(Number)
-  const total = h * 60 + m + mins
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
-}
-
-function isBreakStart(wh, slot) {
-  return wh?.Break_start && wh.Break_start.slice(0, 5) === slot
-}
-
-function coversBreak(wh, slot) {
-  if (!wh?.Break_start || !wh?.Break_end) return false
-  const s = toMinutes(slot)
-  return s >= toMinutes(wh.Break_start.slice(0, 5)) && s < toMinutes(wh.Break_end.slice(0, 5))
-}
-
-function spanBreak(wh) {
-  if (!wh?.Break_start || !wh?.Break_end) return 0
-  return Math.max(1, Math.ceil((toMinutes(wh.Break_end.slice(0, 5)) - toMinutes(wh.Break_start.slice(0, 5))) / 30))
-}
-
-// Helpers para folgas
-function leaveCoversSlot(leaves, slot) {
-  if (!leaves?.length) return false
-  return leaves.some(l => {
-    if (l.All_day) return true
-    if (!l.Start_time || !l.End_time) return false
-    const s = toMinutes(slot)
-    return s >= toMinutes(l.Start_time.slice(0, 5)) && s < toMinutes(l.End_time.slice(0, 5))
-  })
-}
-function leaveStartsAt(leaves, slot) {
-  if (!leaves?.length) return null
-  if (leaves.some(l => l.All_day) && slot === TIME_SLOTS[0]) return leaves.find(l => l.All_day)
-  const slotMin = toMinutes(slot)
-  return leaves.find(l => {
-    if (l.All_day || !l.Start_time) return false
-    const startMin = toMinutes(l.Start_time.slice(0, 5))
-    return startMin >= slotMin && startMin < slotMin + 30
-  }) ?? null
-}
-function leaveTop(leave, slot, cellH) {
-  if (leave.All_day || !leave.Start_time) return 2
-  const startMin = toMinutes(leave.Start_time.slice(0, 5))
-  const slotMin = toMinutes(slot)
-  return ((startMin - slotMin) / 30) * cellH + 2
-}
-function leaveHeight(leave, cellH) {
-  if (leave.All_day) return TIME_SLOTS.length * cellH - 4
-  if (!leave.Start_time || !leave.End_time) return cellH - 4
-  const startMin = toMinutes(leave.Start_time.slice(0, 5))
-  const endMin = toMinutes(leave.End_time.slice(0, 5))
-  return Math.max(cellH / 2 - 4, ((endMin - startMin) / 30) * cellH - 4)
-}
-
-// Calcula coluna e total de colunas para agendamentos sobrepostos de um profissional
-function computeColumns(appts) {
-  const sorted = [...appts].sort((a, b) =>
-    toMinutes(parseTime(a.Start_time)) - toMinutes(parseTime(b.Start_time))
-  )
-  const colEnds = [] // minuto de fim do último agendamento em cada coluna
-  const colMap = new Map() // segKey (ou UUID) → { col, start, end }
-
-  sorted.forEach(appt => {
-    const key = appt._segKey ?? appt.UUID
-    const start = toMinutes(parseTime(appt.Start_time))
-    const end = toMinutes(parseTime(appt.End_time))
-    let col = colEnds.findIndex(e => e <= start)
-    if (col === -1) { col = colEnds.length; colEnds.push(end) }
-    else colEnds[col] = end
-    colMap.set(key, { col, start, end })
-  })
-
-  // totalCols = maior índice de coluna entre todos os sobrepostos + 1
-  const result = new Map()
-  colMap.forEach((data, uuid) => {
-    let maxCol = data.col
-    colMap.forEach((other, otherUuid) => {
-      if (uuid !== otherUuid && other.start < data.end && other.end > data.start) {
-        maxCol = Math.max(maxCol, other.col)
-      }
-    })
-    result.set(uuid, { col: data.col, totalCols: maxCol + 1 })
-  })
-  return result
-}
-
-function applyPhoneMask(value) {
-  const d = value.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 2) return `(${d}`
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-  if (d.length <= 11) return `(${d.slice(0, 2)}) ${d.slice(2, 3)} ${d.slice(3, 7)}-${d.slice(7)}`
-  return value
-}
 
 const MODAL_CLS = 'fixed inset-0 z-50 flex items-center justify-center p-4'
 const MODAL_INNER_CLS = 'w-full max-w-[380px] bg-bg border border-line rounded-2xl shadow-xl flex flex-col'
@@ -626,7 +404,7 @@ function ModalNovoCliente({ onClose, onCreated }) {
             <input
               required
               value={form.phone}
-              onChange={e => setForm(f => ({ ...f, phone: applyPhoneMask(e.target.value) }))}
+              onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
               placeholder="(11) 9 9999-9999"
               className={`${INPUT_CLS} ${errors.phone ? 'border-danger' : ''}`}
             />
@@ -763,44 +541,6 @@ function FolgaDrawer({ date, professionals, leave, onClose, onSaved }) {
           </div>
         </form>
       </div>
-    </div>
-  )
-}
-
-function LeaveContextMenu({ leave, x, y, onClose, onEdit, onRemove }) {
-  const menuRef = useRef(null)
-  useEffect(() => {
-    function handle(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) onClose()
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', handle)
-    document.addEventListener('keydown', handle)
-    return () => { document.removeEventListener('mousedown', handle); document.removeEventListener('keydown', handle) }
-  }, [onClose])
-  const menuW = 180, menuH = 116
-  const adjX = x + menuW > window.innerWidth ? x - menuW : x
-  const adjY = y + menuH > window.innerHeight ? y - menuH : y
-  return (
-    <div ref={menuRef} className="fixed z-50 bg-surface border border-line rounded-xl shadow-lg py-1.5 min-w-[180px]" style={{ left: adjX, top: adjY }}>
-      <div className="px-3.5 py-2 border-b border-line mb-1">
-        <div className="font-medium text-[12.5px]">Folga</div>
-        {leave.Reason && <div className="text-[11px] text-ink-3 truncate">{leave.Reason}</div>}
-      </div>
-      <button
-        onClick={() => { onEdit(leave); onClose() }}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-ink-2 hover:bg-surface-2 transition-colors cursor-pointer"
-      >
-        <Icon name="edit" size={13} />
-        Editar folga
-      </button>
-      <button
-        onClick={() => { onRemove(leave); onClose() }}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-danger hover:bg-surface-2 transition-colors cursor-pointer"
-      >
-        <Icon name="trash" size={13} />
-        Remover folga
-      </button>
     </div>
   )
 }
@@ -1652,7 +1392,7 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
               <Icon name="x" size={14} className="text-danger flex-shrink-0" />
               <div>
                 <div className="text-[13px] font-medium text-danger">{cancelingRecurring ? 'Removendo…' : 'Remover recorrência'}</div>
-                <div className="text-[11px] text-ink-3">Para de repetir automaticamente — as próximas ocorrências já marcadas são canceladas</div>
+                <div className="text-[11px] text-ink-3">Para de repetir automaticamente — este e os próximos atendimentos já marcados são cancelados</div>
               </div>
             </button>
           ) : (
@@ -2038,12 +1778,12 @@ export default function AdminAgenda() {
 
       {/* Navegação de dia */}
       <div data-tour="day-nav" className="flex items-center gap-2 md:gap-3 mb-5 overflow-x-auto">
-        <button onClick={prevDay}
+        <button onClick={prevDay} aria-label="Dia anterior"
           className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowLeft" size={14} />
         </button>
         <div className="font-display font-medium text-[14px] md:text-[17px] truncate text-center w-[170px] md:w-[320px] shrink-0">{formatHeader(date)}</div>
-        <button onClick={nextDay}
+        <button onClick={nextDay} aria-label="Próximo dia"
           className="w-[34px] h-[34px] shrink-0 rounded-lg border border-line bg-surface text-ink-2 flex items-center justify-center hover:border-ink-3 transition-colors">
           <Icon name="arrowRight" size={14} />
         </button>
@@ -2058,6 +1798,7 @@ export default function AdminAgenda() {
           <input
             ref={dateInputRef}
             type="date"
+            aria-label="Ir para a data"
             value={toDateStr(date)}
             onChange={(e) => {
               if (!e.target.value) return
@@ -2201,6 +1942,8 @@ export default function AdminAgenda() {
                     return (
                       <div key={`${slot}-${prof}-${pi}`}
                         onClick={clickable ? () => setNewSlot({ slot, professional: profObj }) : undefined}
+                        role={clickable ? 'button' : undefined}
+                        aria-label={clickable ? `Agendar ${slot} com ${prof}` : undefined}
                         title={offHours && !past ? 'Fora do horário de trabalho' : undefined}
                         className={`relative h-16 border-r last:border-r-0 border-line-2 overflow-visible
                           ${isHour ? 'border-b border-b-line' : 'border-b border-b-line-2'}

@@ -4,7 +4,7 @@ const sizes = {
   lg: 'w-9 h-9 border-[3px]',
 }
 
-export default function Spinner({ size = 'md', className = '' }) {
+function Spinner({ size = 'md', className = '' }) {
   return (
     <div
       className={`rounded-full border-line-3 border-t-brand animate-spin

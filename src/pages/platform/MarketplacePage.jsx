@@ -7,12 +7,12 @@ import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import platformApi from '@/lib/platformApi'
 import { canEnterSalon } from '@/lib/salonAccess'
+import PendingInvitations from '@/components/ui/PendingInvitations'
 import api from '@/lib/api'
+import { formatCurrency } from '@/lib/format'
 
-const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente' }
+const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
 const MAX_SERVICES = 3
-
-const brl = (v) => Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 function PinIcon() {
   return (
@@ -56,7 +56,7 @@ function SalonCard({ salon, isMember, onClick }) {
             {shown.map(s => (
               <li key={s.id} className="flex items-baseline justify-between gap-3 text-[13px]">
                 <span className="text-ink-2 truncate">{s.name}</span>
-                <span className="font-mono text-xs text-ink-3 shrink-0">{brl(s.price)}</span>
+                {s.price != null && <span className="font-mono text-xs text-ink-3 shrink-0">{formatCurrency(s.price)}</span>}
               </li>
             ))}
             {extra > 0 && <li className="text-xs text-ink-3 mt-0.5">+{extra} {extra === 1 ? 'serviço' : 'serviços'}</li>}
@@ -167,7 +167,7 @@ export default function MarketplacePage() {
           <div className="w-7 h-7 rounded-md bg-brand flex items-center justify-center">
             <span className="font-serif text-white text-sm">D</span>
           </div>
-          <span className="font-display font-semibold text-[13.5px] text-ink">Dauth Platform</span>
+          <span className="font-display font-semibold text-[13.5px] text-ink">Dauth</span>
         </div>
         <div className="flex items-center gap-2">
           {isOwner && (
@@ -196,6 +196,8 @@ export default function MarketplacePage() {
           <h1 className="font-serif text-[40px] font-light text-ink tracking-tight leading-tight">Encontre seu salão.</h1>
           <p className="text-ink-3 mt-1.5 text-md">Veja serviços e valores antes de agendar.</p>
         </div>
+
+        <PendingInvitations onAccepted={() => navigate(user?.platformRole === 'SalonOwner' ? '/meus-saloes' : '/meus-empregos')} />
 
         {/* ── Busca ── */}
         <form onSubmit={e => { e.preventDefault(); setQuery(search.trim()) }} className="flex gap-2 max-w-xl mb-8">

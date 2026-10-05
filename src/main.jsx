@@ -31,7 +31,7 @@ async function bootstrap() {
             useSalonStore.getState().clearSalon()
           } else {
             let permissions = null
-            if (perfil.Role === 'Profissional' || perfil.Role === 'Admin') {
+            if (['Profissional', 'Servico'].includes(perfil.Role)) {
               permissions = await api.get(`/professional/${perfil.UUID}/permissions`).then(r => r.data.data).catch(() => null)
             }
             Object.assign(user, {
@@ -51,7 +51,8 @@ async function bootstrap() {
           const path = window.location.pathname
           if (path === '/' || path === '/login') {
             const role = useSalonStore.getState().role
-            const dest = role === 'Admin' ? '/admin' : role === 'Profissional' ? '/profissional' : '/cliente'
+            const area = role === 'Admin' ? 'admin' : role === 'Profissional' ? 'profissional' : 'cliente'
+            const dest = `/${salon.slug}/${area}` // rotas do produto sempre levam o slug do salão
             useAuthStore.getState().restoreSession(user)
             window.location.replace(dest)
             return

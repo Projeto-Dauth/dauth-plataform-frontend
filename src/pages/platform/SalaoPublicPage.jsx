@@ -3,21 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import platformApi from '@/lib/platformApi'
 import useAuthStore from '@/store/authStore'
 import Icon from '@/components/ui/Icons'
+import { formatDuration } from '@/lib/format'
 
-const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente' }
+const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
+
+const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
 const fmtPrice = (p) => p != null ? `R$ ${Number(p).toFixed(2).replace('.', ',')}` : null
-
-const fmtDuration = (d) => {
-  if (!d) return null
-  if (typeof d === 'number') {
-    const h = Math.floor(d / 60), m = d % 60
-    return h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ''}` : `${m}min`
-  }
-  const [h, m] = d.split(':')
-  const hi = parseInt(h), mi = parseInt(m)
-  return hi > 0 ? `${hi}h${mi > 0 ? ` ${mi}min` : ''}` : `${mi}min`
-}
 
 export default function SalaoPublicPage() {
   const { slug } = useParams()
@@ -74,6 +66,9 @@ export default function SalaoPublicPage() {
   }, {}) ?? {}
 
   const serviceCount = salon._count?.services ?? salon.services?.length ?? 0
+  // Agendamento online desligado (Configurações → Agendamento): não-membro não vê botão de agendar
+  const canBook = salon.bookingEnabled !== false
+  const hours = salon.businessHours ?? []
 
   return (
     <div className="min-h-screen bg-bg">
@@ -88,7 +83,7 @@ export default function SalaoPublicPage() {
               Marketplace
             </Link>
             <div className="flex items-center gap-2">
-              {isAuthenticated && (
+              {isAuthenticated && (membership || canBook) && (
                 <button
                   onClick={() => navigate(membership ? `/${slug}/${ROLE_PATH[membership.role] ?? 'cliente'}` : `/${slug}/agendar`)}
                   className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors text-sm font-display border border-white/20 rounded-lg px-3 py-1.5 hover:border-white/40"
@@ -134,6 +129,15 @@ export default function SalaoPublicPage() {
                   {salon.phone}
                 </span>
               )}
+              {salon.instagram && (
+                <a href={`https://instagram.com/${salon.instagram}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 hover:text-white transition-colors">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+                  </svg>
+                  @{salon.instagram}
+                </a>
+              )}
               <span className="flex items-center gap-1.5">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>
@@ -150,7 +154,7 @@ export default function SalaoPublicPage() {
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
               </button>
-            ) : (
+            ) : canBook && (
               <button onClick={() => navigate(`/${slug}/agendar`)}
                 className="inline-flex items-center gap-2 h-11 px-6 rounded-lg bg-white text-brand font-display font-semibold text-sm hover:bg-surface-2 transition-colors active:scale-[0.97]">
                 Agendar agora
@@ -167,10 +171,10 @@ export default function SalaoPublicPage() {
       <main className="max-w-3xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-8">
           <h2 className="font-serif text-[28px] font-light text-ink tracking-tight">Serviços</h2>
-          <button onClick={() => navigate(membership ? `/${slug}/${ROLE_PATH[membership.role] ?? 'cliente'}` : `/${slug}/agendar`)}
+          {(membership || canBook) && <button onClick={() => navigate(membership ? `/${slug}/${ROLE_PATH[membership.role] ?? 'cliente'}` : `/${slug}/agendar`)}
             className="h-9 px-4 rounded-lg bg-brand-soft text-brand text-sm font-display font-medium hover:bg-brand hover:text-white transition-colors">
             {membership ? 'Meus agendamentos' : 'Agendar agora'}
-          </button>
+          </button>}
         </div>
 
         {Object.keys(byCategory).length === 0 && (
@@ -190,8 +194,8 @@ export default function SalaoPublicPage() {
                     className={`flex items-center justify-between px-5 py-4 ${i < services.length - 1 ? 'border-b border-line' : ''}`}>
                     <div>
                       <p className="text-md font-display font-medium text-ink">{svc.name}</p>
-                      {fmtDuration(svc.duration) && (
-                        <p className="text-xs font-mono text-ink-3 mt-0.5">{fmtDuration(svc.duration)}</p>
+                      {formatDuration(svc.duration) && (
+                        <p className="text-xs font-mono text-ink-3 mt-0.5">{formatDuration(svc.duration)}</p>
                       )}
                     </div>
                     {fmtPrice(svc.price) && (
@@ -206,8 +210,49 @@ export default function SalaoPublicPage() {
           ))}
         </div>
 
+        {/* ── Horário de funcionamento ── */}
+        {hours.length > 0 && (
+          <section className="mt-12">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="eyebrow">Horário de funcionamento</span>
+              <div className="flex-1 h-px bg-line" />
+            </div>
+            <div className="bg-surface border border-line rounded-xl overflow-hidden">
+              {WEEKDAYS.map((day, weekday) => {
+                const h = hours.find(x => x.weekday === weekday)
+                return (
+                  <div key={day} className={`flex items-center justify-between px-5 py-3 text-sm ${weekday < 6 ? 'border-b border-line' : ''}`}>
+                    <span className="font-display text-ink">{day}</span>
+                    <span className={`font-mono ${h ? 'text-ink-2' : 'text-ink-4'}`}>{h ? `${h.open} – ${h.close}` : 'Fechado'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── Equipe ── */}
+        {salon.team?.length > 0 && (
+          <section className="mt-12">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="eyebrow">Equipe</span>
+              <div className="flex-1 h-px bg-line" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {salon.team.map(p => (
+                <span key={p.id} className="flex items-center gap-2 bg-surface border border-line rounded-full pl-1 pr-3 py-1">
+                  <span className="w-7 h-7 rounded-full bg-brand-soft text-brand-soft-ink flex items-center justify-center text-xs font-display font-semibold">
+                    {p.name?.[0]?.toUpperCase()}
+                  </span>
+                  <span className="text-sm text-ink">{p.name}</span>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── CTA final ── */}
-        <div className="mt-12 p-8 rounded-xl border-2 border-dashed border-line text-center">
+        {(membership || canBook) && <div className="mt-12 p-8 rounded-xl border-2 border-dashed border-line text-center">
           <p className="eyebrow mb-2">Pronto para agendar?</p>
           <h3 className="font-serif text-[26px] font-light text-ink mb-2">
             Reserve seu horário em {salon.name}
@@ -219,7 +264,7 @@ export default function SalaoPublicPage() {
             className="inline-flex items-center gap-2 h-11 px-6 rounded-lg bg-brand text-white font-display font-medium text-sm hover:bg-brand/90 transition-colors">
             {membership ? 'Meus agendamentos' : 'Agendar agora'}
           </button>
-        </div>
+        </div>}
       </main>
     </div>
   )

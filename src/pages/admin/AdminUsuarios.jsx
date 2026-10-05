@@ -16,14 +16,18 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import { usePermission } from '@/hooks/usePermission'
 import api from '@/lib/api'
+import platformApi from '@/lib/platformApi'
+import useSalonStore from '@/store/salonStore'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminUsuariosSteps } from '@/tours/adminUsuariosTour'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { batchPayExtraMessage } from '@/lib/creditToast'
-import { MODULES } from '@/config/modules'
+import { MODULES, SERVICE_ACCOUNT_MODULES } from '@/config/modules'
 import { excludeMonitorAdmins } from '@/config/monitorAdmins'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate } from '@/lib/format'
+import { formatPhone } from '@/lib/phone'
 
 const navItems = navItemsByRole['Admin']
 
@@ -34,13 +38,18 @@ const ROLE_CHIP = {
   Admin: 'brand',
   Profissional: 'warning',
   Usuario: 'default',
+  Servico: 'default',
 }
 
 const ROLE_LABEL = {
   Admin: 'Admin',
   Profissional: 'Profissional',
   Usuario: 'Cliente',
+  Servico: 'Conta de serviço',
 }
+
+// Quem tem permissões por módulo (Admin é sempre acesso total) e quais módulos cada papel tem.
+const PERMISSION_MODULES = { Profissional: MODULES, Servico: SERVICE_ACCOUNT_MODULES }
 
 const CLIENT_EXTRA_FILTERS = [
   { key: 'mensalista', label: 'Mensalistas' },
@@ -54,14 +63,6 @@ function formatBirthday(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
   return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`
-}
-
-function applyPhoneMask(value) {
-  const d = value.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 2) return `(${d}`
-  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
-  if (d.length <= 11) return `(${d.slice(0,2)}) ${d.slice(2,3)} ${d.slice(3,7)}-${d.slice(7)}`
-  return value
 }
 
 function isBirthdayThisMonth(iso) {
@@ -112,12 +113,6 @@ function SkeletonCard() {
 
 const EMPTY_FORM = { name: '', phone: '', birthday: '' }
 
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
-}
-
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
 const CREDIT_TYPE_LABEL = {
@@ -127,10 +122,6 @@ const CREDIT_TYPE_LABEL = {
   refund: 'Estorno',
 }
 
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
 function toDateInputValue(iso) {
   if (!iso) return ''
   return iso.slice(0, 10)
@@ -138,6 +129,8 @@ function toDateInputValue(iso) {
 
 function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const { addToast } = useToast()
+  // A conta de serviço também abre esta ficha, mas sem as ações só de Admin (permissões, convite, remover, crédito manual…)
+  const viewerIsAdmin = useSalonStore(s => s.role) === 'Admin'
   const [loading, setLoading] = useState(true)
   const [appointments, setAppointments] = useState([])
   const [tabs, setTabs] = useState([])
@@ -190,6 +183,24 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetting, setResetting] = useState(false)
 
+  const salonId = useSalonStore(s => s.salon?.id)
+  const [confirmInvite, setConfirmInvite] = useState(false)
+  const [inviting, setInviting] = useState(false)
+
+  // Convida o cliente para a equipe: ele recebe no app e no WhatsApp (e no email, se tiver) e vira Profissional ao aceitar
+  async function handleInviteToTeam() {
+    setInviting(true)
+    try {
+      const { data } = await platformApi.post(`/salon/members/${client.UUID}/invite`, {}, { headers: { 'x-salon-id': salonId } })
+      addToast(data.message ?? 'Convite enviado', 'success')
+      setConfirmInvite(false)
+    } catch (err) {
+      addToast(err.response ? (err.response.data?.error || 'Erro ao enviar convite') : 'Sem resposta do servidor. O convite pode ter sido salvo — tente de novo que ele é reenviado.', 'error')
+    } finally {
+      setInviting(false)
+    }
+  }
+
   async function handleResetPassword() {
     setResetting(true)
     try {
@@ -216,7 +227,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
       .catch(() => {})
       .finally(() => setLoading(false))
 
-    if (client.Role === 'Profissional' || client.Role === 'Admin') {
+    if (PERMISSION_MODULES[client.Role] && viewerIsAdmin) {
       api.get(`/professional/${client.UUID}/permissions`)
         .then(res => setPermissions(res.data.data))
         .catch(() => setPermissions(null))
@@ -242,8 +253,10 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
       addToast('Pacote marcado como concluído', 'success')
       const res = await api.get(`/package/client/${client.UUID}`)
       setCombos(res.data.data ?? [])
+      return true
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao concluir pacote', 'error')
+      return false
     } finally {
       setConcludingPackageId(null)
     }
@@ -358,7 +371,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                 label="Telefone"
                 placeholder="(11) 9 9999-9999"
                 value={editForm.phone}
-                onChange={(e) => setEditForm((f) => ({ ...f, phone: applyPhoneMask(e.target.value) }))}
+                onChange={(e) => setEditForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))}
                 error={editErrors.phone}
               />
               <Input
@@ -464,9 +477,11 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                       Ver histórico completo ({credit.data.length})
                     </button>
                   )}
-                  <Button variant="outline" size="sm" className="w-full justify-center" onClick={() => setCreditModal(true)}>
-                    <Icon name="cash" size={13} />Ajustar crédito
-                  </Button>
+                  {viewerIsAdmin && (
+                    <Button variant="outline" size="sm" className="w-full justify-center" onClick={() => setCreditModal(true)}>
+                      <Icon name="cash" size={13} />Ajustar crédito
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -536,23 +551,24 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
               </div>
 
               {/* Permissões por módulo */}
-              {(client.Role === 'Profissional' || client.Role === 'Admin') && permissions && (
+              {PERMISSION_MODULES[client.Role] && viewerIsAdmin && permissions && (
                 <div>
                   <h5 className="font-medium text-[13.5px] mb-3">Permissões</h5>
                   <div className="space-y-2 mb-3">
-                    {MODULES.map(({ key, label }) => {
+                    {PERMISSION_MODULES[client.Role].map(({ key, label }) => {
                       const perm = permissions.find(p => p.module === key)
                       return (
                         <div key={key} className="flex items-center justify-between bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
                           <span className="text-ink-2">{label}</span>
                           <div className="flex items-center gap-3">
                             <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
-                              <input type="checkbox" checked={perm?.canView ?? true} onChange={() => togglePermission(key, 'canView')} />
+                              <input type="checkbox" aria-label={`${label}: visualizar`} checked={perm?.canView ?? true} onChange={() => togglePermission(key, 'canView')} />
                               Visualizar
                             </label>
                             <label className="flex items-center gap-1.5 text-[12px] text-ink-3 cursor-pointer">
                               <input
                                 type="checkbox"
+                                aria-label={`${label}: gerenciar`}
                                 checked={perm?.canManage ?? true}
                                 disabled={!(perm?.canView ?? true)}
                                 onChange={() => togglePermission(key, 'canManage')}
@@ -575,10 +591,19 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                 {client.Role === 'Profissional' ? 'Editar profissional' : 'Editar cliente'}
               </Button>
 
-              <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
-                <Icon name="lock" size={13} />
-                Redefinir senha
-              </Button>
+              {viewerIsAdmin && (
+                <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)} className="justify-center">
+                  <Icon name="lock" size={13} />
+                  Redefinir senha
+                </Button>
+              )}
+
+              {client.Role === 'Usuario' && viewerIsAdmin && (
+                <Button variant="outline" size="sm" onClick={() => setConfirmInvite(true)} className="justify-center">
+                  <Icon name="plus" size={13} />
+                  Convidar para a equipe
+                </Button>
+              )}
 
             </div>
           )}
@@ -593,6 +618,16 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         message={`A senha de ${client.Name} será redefinida para 12345678. No próximo login, será exigida a troca de senha.`}
         confirmLabel="Redefinir"
         loading={resetting}
+      />
+
+      <Modal
+        isOpen={confirmInvite}
+        onClose={() => setConfirmInvite(false)}
+        onConfirm={handleInviteToTeam}
+        title="Convidar para a equipe"
+        message={`${client.Name} vai receber o convite no app e no WhatsApp. Ao aceitar, passa a ser profissional do salão — o histórico como cliente continua.`}
+        confirmLabel="Enviar convite"
+        loading={inviting}
       />
 
       {fecharConta && (
@@ -785,6 +820,8 @@ function ModalAjustarCredito({ client, balance, onClose, onSuccess }) {
 
 export default function AdminUsuarios() {
   const { user } = useAuthStore()
+  // Ativar/desativar é só do Admin (a conta de serviço também usa esta tela)
+  const isAdmin = useSalonStore(s => s.role) === 'Admin'
   const { can } = usePermission()
   const { addToast } = useToast()
 
@@ -799,7 +836,7 @@ export default function AdminUsuarios() {
   const [selectedClient, setSelectedClient] = useState(null)
   const [selectedMensalistaData, setSelectedMensalistaData] = useState(null)
   const [mensalistaClients, setMensalistaClients] = useState([])
-  const [mensalistaLoading, setMensalistaLoading] = useState(true)
+  const [, setMensalistaLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
@@ -921,7 +958,7 @@ export default function AdminUsuarios() {
   }
 
   function handlePhoneChange(e) {
-    setForm((f) => ({ ...f, phone: applyPhoneMask(e.target.value) }))
+    setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))
   }
 
   const sidebar = (
@@ -1071,10 +1108,10 @@ export default function AdminUsuarios() {
                       <Chip variant={u.active ? 'success' : 'danger'}>{u.active ? 'Ativo' : 'Inativo'}</Chip>
                     </td>
                     <td className="px-3.5 py-3 text-right border-b border-line-2">
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setToggleTarget(u) }}>
+                      {isAdmin && <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setToggleTarget(u) }}>
                         <Icon name={u.active ? 'lock' : 'check'} size={13} />
                         {u.active ? 'Desativar' : 'Ativar'}
-                      </Button>
+                      </Button>}
                     </td>
                   </tr>
                 ))}
@@ -1108,10 +1145,10 @@ export default function AdminUsuarios() {
                     <Chip variant={ROLE_CHIP[u.Role] ?? 'default'}>{ROLE_LABEL[u.Role] ?? u.Role}</Chip>
                     {u.Phone && <span className="font-mono text-[11px] text-ink-3">{u.Phone}</span>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setToggleTarget(u) }}>
+                  {isAdmin && <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setToggleTarget(u) }}>
                     <Icon name={u.active ? 'lock' : 'check'} size={13} />
                     {u.active ? 'Desativar' : 'Ativar'}
-                  </Button>
+                  </Button>}
                 </div>
               </div>
             ))}

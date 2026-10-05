@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button'
 import useAuthStore from '@/store/authStore'
 import { useToast } from '@/context/ToastContext'
 import platformApi from '@/lib/platformApi'
+import { formatPhone } from '@/lib/phone'
 
 export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
@@ -36,19 +37,11 @@ export default function LoginPage() {
 
       const { platformRole, memberRole } = data.user
       if (platformRole === 'SalonOwner') return navigate('/meus-saloes', { replace: true })
-      if (memberRole === 'Profissional' || memberRole === 'Admin') return navigate('/meus-empregos', { replace: true })
+      if (['Profissional', 'Admin', 'Servico'].includes(memberRole)) return navigate('/meus-empregos', { replace: true })
       navigate('/marketplace', { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao entrar. Tente novamente.')
     }
-  }
-
-  function formatPhone(value) {
-    const digits = value.replace(/\D/g, '').slice(0, 11)
-    if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-    if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
-    if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
-    return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
   }
 
   // Telefone (SalonMember/Cliente) ou email (SalonOwner) no mesmo campo. Só aplica a máscara
@@ -68,7 +61,7 @@ export default function LoginPage() {
           <div className="w-11 h-11 rounded-lg bg-white/10 flex items-center justify-center">
             <span className="font-serif text-white text-xl">D</span>
           </div>
-          <span className="font-display font-semibold text-[14px] text-white/90">Dauth Platform</span>
+          <span className="font-display font-semibold text-[14px] text-white/90">Dauth</span>
         </div>
         <div>
           <p className="font-serif text-[46px] font-light leading-[1.15] text-white tracking-wide mb-6">
@@ -78,7 +71,7 @@ export default function LoginPage() {
             Gerencie múltiplos salões de beleza em um só lugar. Agendamentos, profissionais e caixa integrados.
           </p>
         </div>
-        <p className="text-[11px] text-white/30 font-mono tracking-widest uppercase">Plataforma Multi-tenant</p>
+        <p className="text-[11px] text-white/30 font-mono tracking-widest uppercase">Sistema de agendamentos</p>
       </div>
 
       {/* Form side */}
@@ -90,7 +83,7 @@ export default function LoginPage() {
             <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
               <span className="font-serif text-white text-2xl">D</span>
             </div>
-            <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Platform</h1>
+            <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
           </div>
 
           {/* Card */}

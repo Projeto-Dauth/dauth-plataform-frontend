@@ -12,6 +12,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { NAV_ITEM_FEATURE, salonHasFeature, planRequiredFor } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import { canEnterSalon } from '@/lib/salonAccess'
+import { navItemsByRole } from '@/config/navItems'
 
 function NavGroup({ item, onClose }) {
   const location = useLocation()
@@ -59,7 +60,7 @@ function NavGroup({ item, onClose }) {
   )
 }
 
-const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente' }
+const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
 
 function SalonSwitcher({ currentSalonId, onClose: closeSidebar }) {
   const [open, setOpen] = useState(false)
@@ -97,7 +98,7 @@ function SalonSwitcher({ currentSalonId, onClose: closeSidebar }) {
     try {
       const { data: perfil } = await api.get('/users/perfil/me', { headers: { 'x-salon-id': member.salonId } })
       let permissions = null
-      if ((perfil.Role === 'Profissional' || perfil.Role === 'Admin')) {
+      if (['Profissional', 'Servico'].includes(perfil.Role)) {
         permissions = await api.get(`/professional/${perfil.UUID}/permissions`, {
           headers: { 'x-salon-id': member.salonId },
         }).then(r => r.data.data).catch(() => null)
@@ -167,7 +168,10 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '280
   const navScrollRef = useRef(null)
   const { salonSlug } = useParams()
   const { can } = usePermission()
-  const visibleNavItems = navItems.filter((item) => can(item.module, 'view'))
+  // A conta de serviço usa as telas do Admin, mas o menu é sempre o dela (as telas passam o menu do Admin).
+  const salonRole = useSalonStore(s => s.role)
+  const menu = salonRole === 'Servico' ? navItemsByRole.Servico : navItems
+  const visibleNavItems = menu.filter((item) => can(item.module, 'view'))
   const [upsellFeature, setUpsellFeature] = useState(null)
 
   // Prefixa todos os caminhos com /${salonSlug}/ e marca os itens travados pelo plano atual

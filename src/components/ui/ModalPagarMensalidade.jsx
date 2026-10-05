@@ -4,6 +4,8 @@ import Button from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
 import api from '@/lib/api'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency } from '@/lib/format'
+import { useAcceptedPaymentMethods } from '@/config/paymentMethods'
 
 const SETTLE_METHODS = [
   { id: 'pix', icon: 'qr', label: 'Pix' },
@@ -12,13 +14,10 @@ const SETTLE_METHODS = [
   { id: 'cartao_credito', icon: 'card', label: 'Crédito' },
 ]
 
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
 export default function ModalPagarMensalidade({ client, items, total, onClose, onSuccess }) {
   const { addToast } = useToast()
   const [method, setMethod] = useState(null)
+  const accepted = useAcceptedPaymentMethods()
   const [paying, setPaying] = useState(false)
 
   async function handleConfirm() {
@@ -82,7 +81,7 @@ export default function ModalPagarMensalidade({ client, items, total, onClose, o
 
           <p className="font-mono text-[10.5px] uppercase tracking-widest text-ink-4 mb-2">Forma de pagamento</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {SETTLE_METHODS.map(m => (
+            {SETTLE_METHODS.filter(m => accepted.includes(m.id)).map(m => (
               <button
                 key={m.id}
                 onClick={() => setMethod(m.id)}

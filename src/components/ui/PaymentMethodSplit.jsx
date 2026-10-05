@@ -1,4 +1,6 @@
 import Icon from '@/components/ui/Icons'
+import { formatCurrency } from '@/lib/format'
+import { useAcceptedPaymentMethods } from '@/config/paymentMethods'
 
 const METHOD_OPTIONS = [
   { id: 'pix', label: 'Pix' },
@@ -8,10 +10,6 @@ const METHOD_OPTIONS = [
   { id: 'fiado', label: 'Mensalista — cobrar depois' },
 ]
 
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
 // Escolha de método(s) de pagamento — recebe `sp` (retorno de usePaymentSplit). Cada
 // forma de pagamento é 1 linha: dropdown de método + (a partir da 2ª linha) campo de
 // valor + botão de remover. Com 1 linha só (caso comum), não há campo de valor — o
@@ -20,19 +18,22 @@ function formatCurrency(v) {
 // sozinha: escolher Mensalista com 2+ linhas na tela não é permitido pelo próprio
 // dropdown, que desabilita a opção fora do caso de 1 linha só).
 export default function PaymentMethodSplit({ sp }) {
+  const accepted = useAcceptedPaymentMethods()
+  const options = METHOD_OPTIONS.filter(m => accepted.includes(m.id) || sp.payments.some(p => p.method === m.id))
   return (
-    <div className="space-y-2">
-      {sp.payments.map((leg) => {
+    <div role="group" aria-label="Formas de pagamento" className="space-y-2">
+      {sp.payments.map((leg, legIndex) => {
         const usedByOthers = sp.payments.filter(p => p.id !== leg.id).map(p => p.method)
         return (
           <div key={leg.id} className="space-y-1.5">
             <div className="flex items-center gap-2">
               <select
+                aria-label={`Forma de pagamento ${legIndex + 1}`}
                 value={leg.method}
                 onChange={e => sp.setMethod(leg.id, e.target.value)}
                 className="flex-1 h-9 px-2.5 rounded-md border border-line bg-surface text-ink-2 text-[13px] focus:outline-none focus:border-brand cursor-pointer"
               >
-                {METHOD_OPTIONS.map(m => (
+                {options.map(m => (
                   <option
                     key={m.id}
                     value={m.id}
@@ -45,6 +46,7 @@ export default function PaymentMethodSplit({ sp }) {
 
               {!sp.single && (
                 <input
+                  aria-label={`Valor da forma de pagamento ${legIndex + 1}`}
                   type="text"
                   inputMode="decimal"
                   placeholder="0,00"
@@ -70,6 +72,7 @@ export default function PaymentMethodSplit({ sp }) {
               <div className="flex items-center justify-end gap-2">
                 <span className="text-[12.5px] text-ink-3">Valor recebido</span>
                 <input
+                  aria-label="Valor recebido"
                   type="text"
                   inputMode="decimal"
                   placeholder={formatCurrency(sp.legAmount(leg))}

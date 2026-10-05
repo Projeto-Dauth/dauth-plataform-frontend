@@ -5,13 +5,33 @@ import Button from '@/components/ui/Button'
 import platformApi from '@/lib/platformApi'
 import useSalonStore from '@/store/salonStore'
 import { useToast } from '@/context/ToastContext'
-import { PLANS, formatPlanPrice } from '@/config/plans'
+import { PLANS, formatPlanPrice, TRIAL_MAX_PROFESSIONALS } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
+import Icon from '@/components/ui/Icons'
+import { formatPhone } from '@/lib/phone'
 
 const PLAN_OPTIONS = [
   { id: null, label: 'Trial', tagline: '7 dias grátis, decidir depois' },
   ...PLANS.map(p => ({ id: p.id, label: p.label, tagline: formatPlanPrice(p.priceCents) + '/mês' })),
 ]
+
+// Lista completa (não relativa) do que cada opção inclui. As listas de `features` dos planos são
+// incrementais ("Tudo do Essencial"), então acumula os itens de cada plano com os dos anteriores.
+// Linhas de limite ("Até N profissionais") viram uma linha própria a partir de `maxProfessionals`.
+const isMetaItem = (f) => f.startsWith('Tudo do') || f.startsWith('Até ') || f.startsWith('Sem limite')
+const ALL_ITEMS = [...new Set(PLANS.flatMap(p => p.features.filter(f => !isMetaItem(f))))]
+
+function planDetails(planId) {
+  if (!planId) {
+    // Trial: tudo, exceto WhatsApp (TRIAL_BLOCKED_FEATURES) e suporte prioritário (exclusivo de plano pago)
+    const excluded = ['WhatsApp do salão', 'Suporte prioritário']
+    return { included: ALL_ITEMS.filter(f => !excluded.includes(f)), professionals: `Até ${TRIAL_MAX_PROFESSIONALS} profissionais` }
+  }
+  const idx = PLANS.findIndex(p => p.id === planId)
+  const included = PLANS.slice(0, idx + 1).flatMap(p => p.features.filter(f => !isMetaItem(f)))
+  const max = PLANS[idx].maxProfessionals
+  return { included, professionals: max ? `Até ${max} profissionais` : 'Profissionais sem limite' }
+}
 
 export default function CreateSalonPage() {
   const [apiError, setApiError] = useState('')
@@ -21,13 +41,12 @@ export default function CreateSalonPage() {
   const setSalon = useSalonStore((s) => s.setSalon)
   const { addToast } = useToast()
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm()
-  const nameValue = watch('name', '')
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm()
 
-  const onSubmit = async ({ name, slug, phone, address }) => {
+  const onSubmit = async ({ name, phone, address }) => {
     setApiError('')
     try {
-      const { data: salon } = await platformApi.post('/salon', { name, slug, phone, address, plan })
+      const { data: salon } = await platformApi.post('/salon', { name, phone, address, plan })
       setSalon({ id: salon.id, name: salon.name, slug: salon.slug, plan: salon.plan, status: salon.status }, 'Admin', null)
 
       // Plano pago escolhido: nunca entra em trial — precisa pagar antes de acessar o salão.
@@ -38,25 +57,15 @@ export default function CreateSalonPage() {
       }
 
       addToast('Salão criado com sucesso!', 'success')
-      navigate('/admin', { replace: true })
+      navigate(`/${salon.slug}/admin`, { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao criar salão.')
     }
   }
 
-  const generateSlug = (name) => name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-
-  function formatPhone(value) {
-    const digits = value.replace(/\D/g, '').slice(0, 11)
-    if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-    if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
-    if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
-    return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
-  }
-
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md lg:max-w-[784px]">
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
             <span className="font-serif text-white text-2xl">D</span>
@@ -65,7 +74,8 @@ export default function CreateSalonPage() {
           <p className="text-sm text-ink-3 mt-1">Vamos criar o seu espaço na plataforma</p>
         </div>
 
-        <div className="bg-surface border border-line rounded-lg p-8">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+        <div className="bg-surface border border-line rounded-lg p-8 w-full lg:max-w-md">
           <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="flex flex-col gap-1.5 mb-4">
               <label className="text-xs text-ink-3 font-medium uppercase tracking-wider">Nome do salão</label>
@@ -74,28 +84,8 @@ export default function CreateSalonPage() {
                 placeholder="Ex: Salão Bela Arte"
                 className={`h-[42px] px-[14px] rounded-md border bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors ${errors.name ? 'border-danger' : 'border-line'}`}
                 {...register('name', { required: 'Nome obrigatório' })}
-                onChange={(e) => {
-                  setValue('name', e.target.value)
-                  setValue('slug', generateSlug(e.target.value))
-                }}
               />
               {errors.name && <span className="text-xs text-danger">{errors.name.message}</span>}
-            </div>
-
-            <div className="flex flex-col gap-1.5 mb-4">
-              <label className="text-xs text-ink-3 font-medium uppercase tracking-wider">
-                URL do salão <span className="normal-case font-normal text-ink-4">(slug)</span>
-              </label>
-              <div className="flex items-center border rounded-md overflow-hidden focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/12 transition-colors border-line">
-                <span className="px-3 text-ink-4 text-sm bg-surface-2 border-r border-line h-[42px] flex items-center shrink-0">dauth.app/s/</span>
-                <input
-                  type="text"
-                  placeholder="bela-arte"
-                  className="flex-1 h-[42px] px-3 bg-surface text-ink-2 font-mono text-md focus:outline-none"
-                  {...register('slug', { required: 'Slug obrigatório', pattern: { value: /^[a-z0-9-]+$/, message: 'Apenas letras, números e hífens' } })}
-                />
-              </div>
-              {errors.slug && <span className="text-xs text-danger">{errors.slug.message}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5 mb-4">
@@ -156,6 +146,9 @@ export default function CreateSalonPage() {
             </Button>
           </form>
         </div>
+
+        <PlanDetails planId={plan} />
+        </div>
       </div>
 
       {createdSalon && (
@@ -163,13 +156,42 @@ export default function CreateSalonPage() {
           salonId={createdSalon.id}
           defaultPlan={plan}
           lockPlan
-          onClose={() => navigate('/admin/configuracoes', { replace: true })}
+          onClose={() => navigate(`/${createdSalon.slug}/admin/configuracoes`, { replace: true })}
           onActivated={() => {
             addToast('Pagamento confirmado! Salão ativado.', 'success')
-            navigate('/admin', { replace: true })
+            navigate(`/${createdSalon.slug}/admin`, { replace: true })
           }}
         />
       )}
     </div>
+  )
+}
+
+function PlanDetails({ planId }) {
+  const { included, professionals } = planDetails(planId)
+  const opt = PLAN_OPTIONS.find(o => o.id === planId)
+  return (
+    <aside className="w-full lg:flex-1 lg:sticky lg:top-6 bg-surface border border-line rounded-lg p-6">
+      <p className="text-xs text-ink-3 font-medium uppercase tracking-wider">O que está incluso</p>
+      <p className="font-display font-medium text-lg text-ink mt-1">{opt.label}</p>
+      <p className="text-sm text-ink-3 mb-4">{opt.tagline}</p>
+      <ul className="flex flex-col gap-2">
+        {ALL_ITEMS.map(item => {
+          const ok = included.includes(item)
+          return (
+            <li key={item} className={`flex items-center gap-2 text-sm ${ok ? 'text-ink-2' : 'text-ink-4'}`}>
+              {ok
+                ? <Icon name="check" size={14} className="text-success shrink-0" />
+                : <span className="w-[14px] text-center shrink-0">—</span>}
+              {item}
+            </li>
+          )
+        })}
+        <li className="flex items-center gap-2 text-sm text-ink-2 pt-1.5 mt-0.5 border-t border-line-3">
+          <Icon name="check" size={14} className="text-success shrink-0" />
+          {professionals}
+        </li>
+      </ul>
+    </aside>
   )
 }

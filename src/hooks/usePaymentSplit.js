@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useAcceptedPaymentMethods } from '@/config/paymentMethods'
 
 // Todos os métodos válidos, exceto crédito da cliente (esse é resolvido à parte por
 // useCreditAndTroco, sempre "abatido primeiro" antes do valor entrar aqui).
-export const CASH_METHODS = ['pix', 'dinheiro', 'cartao_credito', 'cartao_debito']
+const CASH_METHODS = ['pix', 'dinheiro', 'cartao_credito', 'cartao_debito']
 
 let nextLegId = 0
 
@@ -21,10 +22,14 @@ function newLeg(method) {
 // da primeira vez. `trackCashTendered: false` desliga o campo de valor recebido/troco: numa
 // correção de lançamento não há dinheiro novo trocando de mão, só o registro sendo acertado.
 export function usePaymentSplit({ total, resetKey, initialPayments, trackCashTendered = true }) {
+  // Só as formas que o salão aceita (Configurações → Pagamentos)
+  const accepted = useAcceptedPaymentMethods()
+  const cashMethods = CASH_METHODS.filter(m => accepted.includes(m))
+  const defaultMethod = cashMethods[0] ?? 'fiado'
   const buildInitialLegs = () => (
     initialPayments?.length
       ? initialPayments.map(p => ({ ...newLeg(p.Method), amount: String(p.Amount ?? '') }))
-      : [newLeg('pix')]
+      : [newLeg(defaultMethod)]
   )
   const [payments, setPayments] = useState(buildInitialLegs)
 
@@ -36,7 +41,7 @@ export function usePaymentSplit({ total, resetKey, initialPayments, trackCashTen
   const single = payments.length === 1
   const usedMethods = new Set(payments.map(p => p.method))
   const isFiado = payments.some(p => p.method === 'fiado')
-  const availableMethods = CASH_METHODS.filter(m => !usedMethods.has(m))
+  const availableMethods = cashMethods.filter(m => !usedMethods.has(m))
   const canAddLeg = single ? !isFiado && availableMethods.length > 0 : availableMethods.length > 0
 
   function legAmount(leg) {
@@ -53,7 +58,7 @@ export function usePaymentSplit({ total, resetKey, initialPayments, trackCashTen
   function removeLeg(id) {
     setPayments(prev => {
       const next = prev.filter(p => p.id !== id)
-      if (next.length === 0) return [newLeg('pix')]
+      if (next.length === 0) return [newLeg(defaultMethod)]
       if (next.length === 1) return [{ ...next[0], amount: '' }]
       return next
     })

@@ -21,7 +21,8 @@ platformApi.interceptors.response.use(
         return await platformApi(original)
       } catch {
         useAuthStore.getState().logout()
-        window.location.href = '/login'
+        // Volta para a página atual depois do login (ex: link de convite com sessão vencida)
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
         return Promise.reject(error)
       }
     }

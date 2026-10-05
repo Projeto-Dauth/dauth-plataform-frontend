@@ -21,15 +21,12 @@ import usePrivacyStore from '@/store/privacyStore'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { formatCurrency } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
 
 const BRAND = '#8b4a2b'
 const GOLD = '#c9a57b'
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 
 function formatDateShort(iso) {
   const [, m, d] = iso.split('-')

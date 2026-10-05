@@ -37,7 +37,7 @@ export default function VerificarEmailPage() {
           <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
             <span className="font-serif text-white text-2xl">D</span>
           </div>
-          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Platform</h1>
+          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
         </div>
 
         <div className="bg-surface border border-line rounded-[14px] p-8 text-center">

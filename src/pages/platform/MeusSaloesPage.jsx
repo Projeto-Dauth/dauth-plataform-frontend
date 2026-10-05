@@ -7,7 +7,7 @@ import useAuthStore from '@/store/authStore'
 import Icon from '@/components/ui/Icons'
 import Avatar from '@/components/ui/Avatar'
 
-const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente' }
+const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
 
 const PLAN_CHIP = {
   free:  'bg-surface-3 text-ink-3',
@@ -22,11 +22,12 @@ function trialDaysLeft(trialEndsAt) {
 }
 
 function StatusBadge({ salon }) {
+  if (salon.scheduledDeletionAt) {
+    const days = trialDaysLeft(salon.scheduledDeletionAt)
+    return <span className="px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-danger-soft text-danger">Exclui em {days}d</span>
+  }
   if (salon.archivedAt) {
     return <span className="px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-surface-3 text-ink-3">Arquivado</span>
-  }
-  if (salon.scheduledDeletionAt) {
-    return <span className="px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-danger-soft text-danger">Exclusão agendada</span>
   }
   if (salon.status === 'suspended') {
     return <span className="px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-danger-soft text-danger">Suspenso</span>
@@ -37,6 +38,19 @@ function StatusBadge({ salon }) {
     return <span className="px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-warning-soft text-warning">Trial · {days}d</span>
   }
   return <span className="px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-success-soft text-success">Ativo</span>
+}
+
+const TABS = [
+  { id: 'ativos',     label: 'Ativos' },
+  { id: 'arquivados', label: 'Arquivados' },
+  { id: 'excluidos',  label: 'Excluídos' },
+]
+
+// Exclusão agendada tem prioridade sobre arquivado
+function salonTab(salon) {
+  if (salon.scheduledDeletionAt) return 'excluidos'
+  if (salon.archivedAt) return 'arquivados'
+  return 'ativos'
 }
 
 function DeleteModal({ salon, onClose, onConfirm, loading }) {
@@ -80,8 +94,9 @@ function DeleteModal({ salon, onClose, onConfirm, loading }) {
 export default function MeusSaloesPage() {
   const [salons, setSalons] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showArchived, setShowArchived] = useState(false)
+  const [tab, setTab] = useState('ativos')
   const [archiving, setArchiving] = useState(null)
+  const [restoring, setRestoring] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const navigate = useNavigate()
@@ -131,13 +146,24 @@ export default function MeusSaloesPage() {
     }
   }
 
-  function toggleShowArchived() {
-    setShowArchived(v => !v)
+  async function handleRestore(e, member) {
+    e.stopPropagation()
+    setRestoring(member.salonId)
+    try {
+      await platformApi.patch(`/salon/${member.salonId}/restore`)
+      load()
+    } catch {} finally {
+      setRestoring(null)
+    }
   }
 
   const firstName = user?.name?.split(' ')[0] ?? 'bem-vindo'
-  const hasArchived = salons.some(m => m.salon.archivedAt)
-  const visible = showArchived ? salons : salons.filter(m => !m.salon.archivedAt)
+  const counts = { ativos: 0, arquivados: 0, excluidos: 0 }
+  salons.forEach(m => { counts[salonTab(m.salon)]++ })
+  // Aba esvaziou (ex.: cancelou a última exclusão) → volta para Ativos
+  const currentTab = tab !== 'ativos' && counts[tab] === 0 ? 'ativos' : tab
+  const visible = salons.filter(m => salonTab(m.salon) === currentTab)
+  const showTabs = counts.arquivados > 0 || counts.excluidos > 0
 
   return (
     <div className="min-h-screen bg-bg">
@@ -147,7 +173,7 @@ export default function MeusSaloesPage() {
           <div className="w-7 h-7 rounded-md bg-brand flex items-center justify-center">
             <span className="font-serif text-white text-sm">D</span>
           </div>
-          <span className="font-display font-semibold text-[13.5px] text-ink">Dauth Platform</span>
+          <span className="font-display font-semibold text-[13.5px] text-ink">Dauth</span>
         </div>
         <div className="flex items-center gap-3">
           {user && (
@@ -174,15 +200,16 @@ export default function MeusSaloesPage() {
         </div>
 
         {/* ── Cabeçalho seção ── */}
-        {(loading || visible.length > 0 || showArchived) && (
+        {(loading || salons.length > 0) && (
           <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-8">
-              <h2 className="eyebrow">Seus salões</h2>
-              {(hasArchived || showArchived) && (
-                <button onClick={toggleShowArchived}
-                  className="eyebrow hover:text-ink transition-colors">
-                  {showArchived ? 'Ocultar arquivados' : 'Mostrar arquivados'}
+            <div className="flex items-center gap-6">
+              {showTabs ? TABS.filter(t => t.id === 'ativos' || counts[t.id] > 0).map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`eyebrow transition-colors ${currentTab === t.id ? 'text-ink' : 'text-ink-4 hover:text-ink-2'}`}>
+                  {t.label} · {counts[t.id]}
                 </button>
+              )) : (
+                <h2 className="eyebrow">Seus salões</h2>
               )}
             </div>
             <button onClick={() => navigate('/criar-salao')}
@@ -198,7 +225,7 @@ export default function MeusSaloesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map(i => <div key={i} className="h-44 rounded-xl border border-line bg-surface animate-pulse" />)}
           </div>
-        ) : (visible.length > 0 || showArchived) && (
+        ) : salons.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visible.map((member) => {
               const isArchived = !!member.salon.archivedAt
@@ -207,7 +234,7 @@ export default function MeusSaloesPage() {
               return (
                 <div key={member.id}
                   className={`group relative flex flex-col p-5 bg-surface border border-line rounded-xl transition-all text-left
-                    ${isArchived ? 'opacity-60' : 'hover:border-brand/40 hover:shadow-md'}`}>
+                    ${isArchived || isScheduledDeletion ? 'opacity-60' : 'hover:border-brand/40 hover:shadow-md'}`}>
 
                   {/* Clicável para entrar (exceto arquivado) */}
                   {!isArchived && !isScheduledDeletion && (
@@ -238,6 +265,18 @@ export default function MeusSaloesPage() {
                     <StatusBadge salon={member.salon} />
                   </div>
 
+                  {isAdmin && isScheduledDeletion && (
+                    <div className="relative flex items-center gap-2 mt-3 pt-3 border-t border-line">
+                      <button
+                        onClick={e => handleRestore(e, member)}
+                        disabled={restoring === member.salonId}
+                        className="text-[11.5px] text-ink-3 hover:text-ink transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-surface-2">
+                        <Icon name="repeat" size={12} />
+                        {restoring === member.salonId ? '…' : 'Cancelar exclusão'}
+                      </button>
+                    </div>
+                  )}
+
                   {/* Ações admin (z acima do botão overlay) */}
                   {isAdmin && !isScheduledDeletion && (
                     <div className="relative flex items-center gap-2 mt-3 pt-3 border-t border-line">
@@ -263,17 +302,17 @@ export default function MeusSaloesPage() {
             })}
 
             {/* Card novo salão */}
-            <button onClick={() => navigate('/criar-salao')}
+            {currentTab === 'ativos' && <button onClick={() => navigate('/criar-salao')}
               className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-line rounded-xl hover:border-brand/40 hover:bg-brand-soft/20 transition-all min-h-[176px] text-ink-3 hover:text-brand">
               <div className="w-9 h-9 rounded-lg border-2 border-dashed border-current flex items-center justify-center mb-2">
                 <Icon name="plus" size={16} />
               </div>
               <span className="text-sm font-display font-medium">Novo salão</span>
-            </button>
+            </button>}
           </div>
         )}
 
-        {!loading && visible.length === 0 && !showArchived && (
+        {!loading && salons.length === 0 && (
           <div className="border-2 border-dashed border-line rounded-xl p-12 text-center mt-4">
             <div className="text-4xl mb-4">✂️</div>
             <h3 className="font-serif text-[26px] font-light text-ink mb-1">Nenhum salão criado ainda</h3>

@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Avatar from '@/components/ui/Avatar'
-import Icon from '@/components/ui/Icons'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate, toLocalDateStr } from '@/lib/format'
 
 const navItems = navItemsByRole['Profissional']
 
@@ -20,10 +20,6 @@ const PRESETS = [
   { key: 'quinzena', label: 'Quinzena' },
   { key: 'mes', label: 'Mês' },
 ]
-
-function toLocalDateStr(date) {
-  return date.toLocaleDateString('en-CA')
-}
 
 // Dia/semana/quinzena são sempre relativos a hoje; "mês" usa o mês/ano escolhido nos
 // selects, para o profissional conseguir conferir um mês fechado anterior.
@@ -43,19 +39,6 @@ function getDateRange(preset) {
   const start = new Date(today)
   start.setDate(today.getDate() - 14)
   return { from: toLocalDateStr(start), to }
-}
-
-function formatCurrency(v) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0)
-}
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  // Data pura (YYYY-MM-DD, ex: data do agendamento) NÃO pode passar por new Date(): o JS lê como meia-noite UTC
-  // e no Brasil (UTC-3) exibe o dia anterior. Timestamps com hora (data do pagamento) continuam via Date.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso.split('-').reverse().join('/')
-  const d = new Date(iso)
-  return d.toLocaleDateString('pt-BR')
 }
 
 export default function ProfissionalComissoes() {

@@ -11,6 +11,7 @@ export default function ClienteSidebar({ user, onClose }) {
   const logout = useAuthStore((s) => s.logout)
   const { salonSlug } = useParams()
   const salon = useSalonStore((s) => s.salon)
+  const role = useSalonStore((s) => s.role)
   const slug = salonSlug || salon?.slug
 
   const navItems = [
@@ -59,6 +60,14 @@ export default function ClienteSidebar({ user, onClose }) {
         </NavLink>
       ))}
       <div className="flex-1" />
+      {/* Profissional vendo os próprios atendimentos como cliente (menu "Como cliente") */}
+      {slug && role === 'Profissional' && (
+        <NavLink to={`/${slug}/profissional`} onClick={onClose}>
+          <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-surface border border-line text-ink-2 cursor-pointer hover:border-ink-3 transition-colors mb-2">
+            <Icon name="arrowLeft" size={14} />Voltar ao painel
+          </button>
+        </NavLink>
+      )}
       {slug && (
         <NavLink to={`/${slug}/agendar`} onClick={onClose}>
           <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-brand-dark transition-colors">

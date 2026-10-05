@@ -5,14 +5,13 @@ import ClienteSidebar from '@/components/layout/ClienteSidebar'
 import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
-import Avatar from '@/components/ui/Avatar'
 import { PageSpinner } from '@/components/ui/Spinner'
-import logo from '@/logo-dauth-agendamentos.png'
 import EmptyState from '@/components/ui/EmptyState'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { useTour } from '@/hooks/useTour'
 import { clienteAgendamentosSteps } from '@/tours/clienteAgendamentosTour'
+import { formatDate } from '@/lib/format'
 
 
 const STATUS_OPTIONS = ['', 'pendente', 'confirmado', 'concluido', 'cancelado']
@@ -23,12 +22,6 @@ const statusStyle = {
   pendente: 'bg-warning-soft text-warning',
   concluido: 'bg-surface-2 text-ink-3',
   cancelado: 'bg-danger-soft text-danger',
-}
-
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.split('-')
-  return `${d}/${m}/${y}`
 }
 
 

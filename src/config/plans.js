@@ -26,7 +26,7 @@ export const PLANS = [
     priceCents: 19990,
     maxProfessionals: null,
     tagline: 'Para operações maiores',
-    features: ['Tudo do Profissional', 'Sem limite de profissionais'],
+    features: ['Tudo do Profissional', 'BI direcionado ao negócio', 'Sem limite de profissionais'],
     featureIds: ['pacotes', 'produtos', 'whatsapp'],
   },
 ]
@@ -53,7 +53,8 @@ export function planRequiredFor(feature) {
 }
 
 // Durante o trial libera tudo, exceto TRIAL_BLOCKED_FEATURES (mesma regra do backend, salonAllowsFeature em src/config/plans.js).
-export const TRIAL_BLOCKED_FEATURES = ['whatsapp']
+const TRIAL_BLOCKED_FEATURES = ['whatsapp']
+export const TRIAL_MAX_PROFESSIONALS = 3 // mesmo valor do backend (salonProfessionalLimit)
 
 export function salonHasFeature(salon, feature) {
   if (!salon) return true

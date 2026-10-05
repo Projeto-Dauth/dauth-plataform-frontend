@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import platformApi from '@/lib/platformApi'
+import api from '@/lib/api'
 import { canEnterSalon } from '@/lib/salonAccess'
 import useSalonStore from '@/store/salonStore'
 import useAuthStore from '@/store/authStore'
 import Icon from '@/components/ui/Icons'
 import Avatar from '@/components/ui/Avatar'
 import { PageSpinner } from '@/components/ui/Spinner'
+import PendingInvitations from '@/components/ui/PendingInvitations'
 
-const ROLE_LABEL = { Profissional: 'Profissional', Admin: 'Admin' }
+const ROLE_LABEL = { Profissional: 'Profissional', Admin: 'Admin', Servico: 'Conta de serviço' }
 const ROLE_COLOR = {
   Profissional: 'bg-brand-soft text-brand',
   Admin: 'bg-warning-soft text-warning',
+  Servico: 'bg-surface-2 text-ink-2',
 }
 
 function StatusDot({ status }) {
@@ -22,32 +25,40 @@ function StatusDot({ status }) {
 
 export default function MeusEmpregosPage() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
   const setSalon = useSalonStore(s => s.setSalon)
   const [memberships, setMemberships] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    platformApi.get('/salon/my')
+  function loadMemberships() {
+    return platformApi.get('/salon/my')
       .then(({ data }) => {
         // Filtra só memberships de Profissional ou Admin (não Usuario)
         const filtered = (data.salons ?? data).filter(m =>
-          (m.role === 'Profissional' || m.role === 'Admin') && canEnterSalon(m)
+          ['Profissional', 'Admin', 'Servico'].includes(m.role) && canEnterSalon(m)
         )
         setMemberships(filtered)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }
 
-  function handleEnter(membership) {
-    setSalon({
-      salon: membership.salon ?? membership,
-      role: membership.role,
-      memberId: membership.memberId ?? membership.id,
-    })
+  useEffect(() => { loadMemberships() }, [])
+
+  async function handleEnter(membership) {
+    setSalon(membership.salon ?? membership, membership.role, membership.memberId ?? membership.id)
+    // Papel e permissões deste salão antes de entrar (mesmo que o "Trocar salão" do menu) — sem isso o menu de
+    // quem tem módulos bloqueados (Profissional, conta de serviço) mostrava tudo até recarregar a página.
+    const salonId = membership.salonId ?? membership.salon?.id
+    try {
+      const { data: perfil } = await api.get('/users/perfil/me', { headers: { 'x-salon-id': salonId } })
+      const permissions = ['Profissional', 'Servico'].includes(perfil.Role)
+        ? await api.get(`/professional/${perfil.UUID}/permissions`, { headers: { 'x-salon-id': salonId } }).then(r => r.data.data).catch(() => null)
+        : null
+      updateUser({ id: perfil.UUID, publicId: perfil.UUID, role: perfil.Role, must_change_password: perfil.Must_change_password, permissions })
+    } catch { }
     const slug = membership.salon?.slug ?? membership.slug
-    const path = membership.role === 'Admin' ? 'admin' : 'profissional'
+    const path = membership.role === 'Profissional' ? 'profissional' : 'admin'
     navigate(`/${slug}/${path}`)
   }
 
@@ -79,6 +90,7 @@ export default function MeusEmpregosPage() {
 
       {/* Lista */}
       <div className="max-w-2xl mx-auto px-6 py-8">
+        <PendingInvitations onAccepted={loadMemberships} />
         {memberships.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center mx-auto mb-4">

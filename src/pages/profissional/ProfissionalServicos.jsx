@@ -6,20 +6,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
-
-function formatDuration(d) {
-  if (!d) return ''
-  if (typeof d === 'number') {
-    const h = Math.floor(d / 60), m = d % 60
-    if (h > 0 && m > 0) return `${h}h${m}min`
-    if (h > 0) return `${h}h`
-    return `${m}min`
-  }
-  const [h, m] = d.split(':').map(Number)
-  if (h > 0 && m > 0) return `${h}h${m}min`
-  if (h > 0) return `${h}h`
-  return `${m}min`
-}
+import { formatDuration } from '@/lib/format'
 
 export default function ProfissionalServicos() {
   const { user } = useAuthStore()

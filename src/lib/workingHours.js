@@ -22,23 +22,23 @@ export function outsideWorkingHours(wh, slot) {
   return s < toMin(wh.Start_time) || s >= toMin(wh.End_time)
 }
 
-export function rangeOutsideWorkingHours(wh, start, end) {
+function rangeOutsideWorkingHours(wh, start, end) {
   if (wh === UNKNOWN_HOURS || wh === undefined) return false
   if (!wh) return true
   return toMin(start) < toMin(wh.Start_time) || toMin(end) > toMin(wh.End_time)
 }
 
-export function rangeOverlapsBreak(wh, start, end) {
+function rangeOverlapsBreak(wh, start, end) {
   if (wh === UNKNOWN_HOURS || wh === undefined || !wh) return false
   if (!wh.Break_start || !wh.Break_end) return false
   return toMin(start) < toMin(wh.Break_end) && toMin(end) > toMin(wh.Break_start)
 }
 
-export function formatWorkingHours(wh) {
+function formatWorkingHours(wh) {
   return wh && wh !== UNKNOWN_HOURS ? `${wh.Start_time.slice(0, 5)}–${wh.End_time.slice(0, 5)}` : null
 }
 
-export function formatBreak(wh) {
+function formatBreak(wh) {
   return wh && wh !== UNKNOWN_HOURS && wh.Break_start && wh.Break_end
     ? `${wh.Break_start.slice(0, 5)}–${wh.Break_end.slice(0, 5)}`
     : null

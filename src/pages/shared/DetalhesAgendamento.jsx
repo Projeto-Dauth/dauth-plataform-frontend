@@ -23,6 +23,7 @@ import { navItemsByRole } from '@/config/navItems'
 import { excludeMonitorAdmins } from '@/config/monitorAdmins'
 import { fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
 import { batchPayExtraMessage } from '@/lib/creditToast'
+import { formatDate } from '@/lib/format'
 
 function addMinutes(timeStr, mins) {
   const [h, m] = timeStr.split(':').map(Number)
@@ -36,12 +37,6 @@ const STATUS_TRANSITIONS = {
   Admin: { pendente: ['confirmado', 'cancelado'], confirmado: ['concluido', 'cancelado'], concluido: [], cancelado: [] },
   Profissional: { pendente: ['confirmado', 'cancelado'], confirmado: ['concluido', 'cancelado'], concluido: [], cancelado: [] },
   Usuario: {},
-}
-
-function formatDate(str) {
-  if (!str) return '—'
-  const [y, m, d] = str.split('-')
-  return `${d}/${m}/${y}`
 }
 
 function InfoRow({ label, value }) {
@@ -253,8 +248,10 @@ export default function DetalhesAgendamento() {
       addToast('Pacote marcado como concluído', 'success')
       const { data: pkgRes } = await api.get(`/package/client/${item.Client_id}`)
       setCombos((pkgRes.data ?? []).filter(c => c.Status === 'ativo' || c.Status === 'pendente'))
+      return true
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao concluir pacote', 'error')
+      return false
     } finally {
       setConcludingPackageId(null)
     }
@@ -1061,7 +1058,7 @@ export default function DetalhesAgendamento() {
         onClose={() => setModal({ open: false, status: '' })}
         onConfirm={handleCancelRecurring}
         title="Cancelar recorrência"
-        message="A série para de se repetir e as próximas ocorrências já marcadas são canceladas. Este atendimento e os já concluídos não são afetados."
+        message="A série para de se repetir e os atendimentos dela ainda não realizados — inclusive este — são cancelados. Os já concluídos não são afetados."
         confirmLabel="Cancelar recorrência"
         loading={cancelingRecurring}
       />

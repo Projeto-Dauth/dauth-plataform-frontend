@@ -6,6 +6,7 @@ export default function VerificarTelefonePage() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState('loading') // 'loading' | 'success' | 'error'
   const [errorMsg, setErrorMsg] = useState('')
+  const [joinedSalons, setJoinedSalons] = useState([]) // conta criada pelo convite: equipes em que entrou
   const called = useRef(false)
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function VerificarTelefonePage() {
     }
 
     platformApi.post('/auth/verify-phone', { token })
-      .then(() => setStatus('success'))
+      .then(({ data }) => { setJoinedSalons(data.joinedSalons ?? []); setStatus('success') })
       .catch((err) => {
         setErrorMsg(err.response?.data?.error ?? 'Token inválido ou expirado.')
         setStatus('error')
@@ -37,7 +38,7 @@ export default function VerificarTelefonePage() {
           <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
             <span className="font-serif text-white text-2xl">D</span>
           </div>
-          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth Platform</h1>
+          <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
         </div>
 
         <div className="bg-surface border border-line rounded-[14px] p-8 text-center">
@@ -63,7 +64,7 @@ export default function VerificarTelefonePage() {
                 Telefone confirmado!
               </h3>
               <p className="text-[13px] text-ink-3 mb-6">
-                Sua conta está ativa. Agora é só entrar.
+                Sua conta está ativa.{joinedSalons.length > 0 && <> Você já faz parte da equipe de <strong className="text-ink-2">{joinedSalons.join(', ')}</strong>.</>} Agora é só entrar.
               </p>
               <Link
                 to="/login"

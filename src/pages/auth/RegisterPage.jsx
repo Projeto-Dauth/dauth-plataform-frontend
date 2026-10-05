@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import platformApi from '@/lib/platformApi'
+import { formatPhone } from '@/lib/phone'
 
 const ROLES = [
   { value: 'SalonOwner', label: 'Dono de salão', desc: 'Gerencie salões, equipe e agenda' },
@@ -34,14 +35,6 @@ export default function RegisterPage() {
     }
   }
 
-  function formatPhone(value) {
-    const digits = value.replace(/\D/g, '').slice(0, 11)
-    if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-    if (digits.length <= 3) return `(${digits.slice(0,2)}) ${digits[2]}`
-    if (digits.length <= 7) return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3)}`
-    return `(${digits.slice(0,2)}) ${digits[2]} ${digits.slice(3,7)}-${digits.slice(7)}`
-  }
-
   return (
     <div className="min-h-screen flex">
       {/* ── Painel esquerdo — brand ── */}
@@ -50,7 +43,7 @@ export default function RegisterPage() {
           <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
             <span className="font-serif text-white text-xl">D</span>
           </div>
-          <span className="font-display font-semibold text-[14px] text-white/80">Dauth Platform</span>
+          <span className="font-display font-semibold text-[14px] text-white/80">Dauth</span>
         </div>
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 mb-5">Comece agora</p>
@@ -61,7 +54,7 @@ export default function RegisterPage() {
             Junte-se a profissionais que gerenciam seus salões com eficiência e elegância.
           </p>
         </div>
-        <p className="font-mono text-[10px] text-white/20 uppercase tracking-widest">Plataforma Multi-tenant</p>
+        <p className="font-mono text-[10px] text-white/20 uppercase tracking-widest">Sistema de agendamentos</p>
       </div>
 
       {/* ── Painel direito — form ── */}
@@ -71,7 +64,7 @@ export default function RegisterPage() {
             <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
               <span className="font-serif text-white">D</span>
             </div>
-            <span className="font-display font-semibold text-[14px] text-ink">Dauth Platform</span>
+            <span className="font-display font-semibold text-[14px] text-ink">Dauth</span>
           </div>
 
           {sentTo ? (

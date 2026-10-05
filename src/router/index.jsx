@@ -10,6 +10,7 @@ import AcceptInvitePage from '@/pages/auth/AcceptInvitePage'
 import VerificarContaPage from '@/pages/auth/VerificarContaPage'
 import VerificarEmailPage from '@/pages/auth/VerificarEmailPage'
 import VerificarTelefonePage from '@/pages/auth/VerificarTelefonePage'
+import ConfirmarTelefonePage from '@/pages/auth/ConfirmarTelefonePage'
 import EsqueciSenhaPage from '@/pages/auth/EsqueciSenhaPage'
 import RedefinirSenhaPage from '@/pages/auth/RedefinirSenhaPage'
 
@@ -64,45 +65,52 @@ import TermosPage from '@/pages/public/TermosPage'
 import NaoAutorizado from '@/pages/NaoAutorizado'
 import NotFound from '@/pages/NotFound'
 
-const ALL = ['Admin', 'Profissional', 'Usuario']
+const ALL = ['Admin', 'Profissional', 'Usuario', 'Servico']
+// Telas do Admin que a conta de serviço (notebook do salão) também usa, conforme os módulos dela
+const ADMIN_OR_SERVICE = ['Admin', 'Servico']
 
 const router = createBrowserRouter([
   // ── Auth ──────────────────────────────────────────────────────
-  { path: '/login',                   element: <LoginPage /> },
-  { path: '/register',                element: <RegisterPage /> },
-  { path: '/criar-salao',             element: <CreateSalonPage /> },
-  { path: '/auth/accept-invite',      element: <AcceptInvitePage /> },
-  { path: '/auth/accept-invite/*',    element: <AcceptInvitePage /> },
-  { path: '/verify',                  element: <VerificarContaPage /> },
-  { path: '/verificar-email',         element: <VerificarEmailPage /> },
-  { path: '/verificar-telefone',      element: <VerificarTelefonePage /> },
-  { path: '/esqueci-senha',           element: <EsqueciSenhaPage /> },
-  { path: '/redefinir-senha',         element: <RedefinirSenhaPage /> },
+  { path: '/login',                   handle: { title: 'Entrar' }, element: <LoginPage /> },
+  { path: '/register',                handle: { title: 'Criar conta' }, element: <RegisterPage /> },
+  { path: '/criar-salao',             handle: { title: 'Criar salão' }, element: <CreateSalonPage /> },
+  { path: '/auth/accept-invite',      handle: { title: 'Aceitar convite' }, element: <AcceptInvitePage /> },
+  { path: '/auth/accept-invite/*',    handle: { title: 'Aceitar convite' }, element: <AcceptInvitePage /> },
+  { path: '/verify',                  handle: { title: 'Verificar conta' }, element: <VerificarContaPage /> },
+  { path: '/verificar-email',         handle: { title: 'Confirmar email' }, element: <VerificarEmailPage /> },
+  { path: '/verificar-telefone',      handle: { title: 'Confirmar telefone' }, element: <VerificarTelefonePage /> },
+  { path: '/confirmar-telefone',      handle: { title: 'Confirmar novo telefone' }, element: <ConfirmarTelefonePage /> },
+  { path: '/esqueci-senha',           handle: { title: 'Esqueci minha senha' }, element: <EsqueciSenhaPage /> },
+  { path: '/redefinir-senha',         handle: { title: 'Redefinir senha' }, element: <RedefinirSenhaPage /> },
 
   { path: '/selecionar-salao',        element: <Navigate to="/meus-saloes" replace /> },
 
   // ── Plataforma ─────────────────────────────────────────────────
   {
     path: '/marketplace',
+    handle: { title: 'Marketplace' },
     element: <ProtectedRoute platformRoles={['Cliente', 'SalonOwner']}><MarketplacePage /></ProtectedRoute>,
   },
   {
     path: '/minha-conta',
+    handle: { title: 'Minha conta' },
     element: <ProtectedRoute platformRoles={['Cliente', 'SalonOwner']}><MinhaContaPage /></ProtectedRoute>,
   },
   {
     path: '/meus-saloes',
+    handle: { title: 'Meus salões' },
     element: <ProtectedRoute platformRoles={['SalonOwner']}><MeusSaloesPage /></ProtectedRoute>,
   },
   {
     path: '/meus-empregos',
+    handle: { title: 'Meus empregos' },
     element: <ProtectedRoute platformRoles={['Cliente']}><MeusEmpregosPage /></ProtectedRoute>,
   },
 
   // ── Público ────────────────────────────────────────────────────
-  { path: '/salao/:slug',   element: <SalaoPublicPage /> },
-  { path: '/privacidade',   element: <PrivacidadePage /> },
-  { path: '/termos',        element: <TermosPage /> },
+  { path: '/salao/:slug',   handle: { title: 'Salão' }, element: <SalaoPublicPage /> },
+  { path: '/privacidade',   handle: { title: 'Privacidade' }, element: <PrivacidadePage /> },
+  { path: '/termos',        handle: { title: 'Termos de uso' }, element: <TermosPage /> },
 
   // ── Produto: rotas com slug do salão ──────────────────────────
   {
@@ -110,51 +118,59 @@ const router = createBrowserRouter([
     element: <SalonLayout />,
     children: [
       // Shared
-      { path: 'perfil',              element: <ProtectedRoute allowedRoles={ALL}><MeuPerfil /></ProtectedRoute> },
-      { path: 'trocar-senha',        element: <ProtectedRoute allowedRoles={ALL}><TrocarSenha /></ProtectedRoute> },
-      { path: 'agendamento/:id',     element: <ProtectedRoute allowedRoles={ALL}><DetalhesAgendamento /></ProtectedRoute> },
-      { path: 'agendar',             element: <AgendarPage /> },
-      { path: 'portal',              element: <PortalPage /> },
+      { path: 'perfil',              handle: { title: 'Perfil' }, element: <ProtectedRoute allowedRoles={ALL}><MeuPerfil /></ProtectedRoute> },
+      { path: 'trocar-senha',        handle: { title: 'Trocar senha' }, element: <ProtectedRoute allowedRoles={ALL}><TrocarSenha /></ProtectedRoute> },
+      { path: 'agendamento/:id',     handle: { title: 'Agendamento' }, element: <ProtectedRoute allowedRoles={ALL}><DetalhesAgendamento /></ProtectedRoute> },
+      { path: 'agendar',             handle: { title: 'Agendar' }, element: <AgendarPage /> },
+      { path: 'portal',              handle: { title: 'Portal' }, element: <PortalPage /> },
 
       // Admin
-      { path: 'admin',                         element: <ProtectedRoute allowedRoles={['Admin']}><AdminAgenda /></ProtectedRoute> },
-      { path: 'admin/dashboard',               element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/dashboard']}><AdminDashboard /></ProtectedRoute> },
-      { path: 'admin/agendamentos',            element: <ProtectedRoute allowedRoles={['Admin']}><AdminAgendamentos /></ProtectedRoute> },
-      { path: 'admin/caixa',                   element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/caixa']}><AdminCaixa /></ProtectedRoute> },
-      { path: 'admin/comissoes',               element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/comissoes']}><AdminComissoes /></ProtectedRoute> },
-      { path: 'admin/mensalistas',             element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/mensalistas']}><AdminMensalistas /></ProtectedRoute> },
-      { path: 'admin/configuracoes',           element: <ProtectedRoute allowedRoles={['Admin']}><AdminConfiguracoes /></ProtectedRoute> },
-      { path: 'admin/combos',                  element: <ProtectedRoute allowedRoles={['Admin']}><AdminCombos /></ProtectedRoute> },
-      { path: 'admin/usuarios',                element: <ProtectedRoute allowedRoles={['Admin']}><AdminUsuarios /></ProtectedRoute> },
-      { path: 'admin/servicos',                element: <ProtectedRoute allowedRoles={['Admin']}><AdminServicos /></ProtectedRoute> },
-      { path: 'admin/produtos',                element: <ProtectedRoute allowedRoles={['Admin']}><AdminProdutos /></ProtectedRoute> },
-      { path: 'admin/pedidos-produtos',        element: <ProtectedRoute allowedRoles={['Admin']}><AdminPedidosProdutos /></ProtectedRoute> },
-      { path: 'admin/convidar-profissional',   element: <ProtectedRoute allowedRoles={['Admin']}><ConvidarProfissional /></ProtectedRoute> },
-      { path: 'admin/meus-horarios',           element: <ProtectedRoute allowedRoles={['Admin']}><ProfissionalHorarios /></ProtectedRoute> },
-      { path: 'admin/meus-servicos',           element: <ProtectedRoute allowedRoles={['Admin']}><ProfissionalServicos /></ProtectedRoute> },
+      { path: 'admin',                         handle: { title: 'Agenda' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin']}><AdminAgenda /></ProtectedRoute> },
+      { path: 'admin/dashboard',               handle: { title: 'Dashboard' }, element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/dashboard']}><AdminDashboard /></ProtectedRoute> },
+      { path: 'admin/agendamentos',            handle: { title: 'Agendamentos' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin/agendamentos']}><AdminAgendamentos /></ProtectedRoute> },
+      { path: 'admin/caixa',                   handle: { title: 'Caixa' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin/caixa']}><AdminCaixa /></ProtectedRoute> },
+      { path: 'admin/comissoes',               handle: { title: 'Comissões' }, element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/comissoes']}><AdminComissoes /></ProtectedRoute> },
+      { path: 'admin/mensalistas',             handle: { title: 'Mensalistas' }, element: <ProtectedRoute allowedRoles={['Admin']} requiredModule={NAV_ITEM_MODULE['admin/mensalistas']}><AdminMensalistas /></ProtectedRoute> },
+      { path: 'admin/configuracoes',           handle: { title: 'Configurações' }, element: <ProtectedRoute allowedRoles={['Admin']}><AdminConfiguracoes /></ProtectedRoute> },
+      { path: 'admin/combos',                  handle: { title: 'Pacotes' }, element: <ProtectedRoute allowedRoles={['Admin']}><AdminCombos /></ProtectedRoute> },
+      { path: 'admin/usuarios',                handle: { title: 'Clientes' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin/usuarios']}><AdminUsuarios /></ProtectedRoute> },
+      { path: 'admin/servicos',                handle: { title: 'Serviços' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin/servicos']}><AdminServicos /></ProtectedRoute> },
+      { path: 'admin/produtos',                handle: { title: 'Produtos' }, element: <ProtectedRoute allowedRoles={['Admin']}><AdminProdutos /></ProtectedRoute> },
+      { path: 'admin/pedidos-produtos',        handle: { title: 'Pedidos de produtos' }, element: <ProtectedRoute allowedRoles={['Admin']}><AdminPedidosProdutos /></ProtectedRoute> },
+      { path: 'admin/convidar-profissional',   handle: { title: 'Profissionais' }, element: <ProtectedRoute allowedRoles={['Admin']}><ConvidarProfissional /></ProtectedRoute> },
+      { path: 'admin/meus-horarios',           handle: { title: 'Meus horários' }, element: <ProtectedRoute allowedRoles={['Admin']}><ProfissionalHorarios /></ProtectedRoute> },
+      { path: 'admin/meus-servicos',           handle: { title: 'Meus serviços' }, element: <ProtectedRoute allowedRoles={['Admin']}><ProfissionalServicos /></ProtectedRoute> },
 
       // Profissional
-      { path: 'profissional',                  element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional']}><ProfissionalAgenda /></ProtectedRoute> },
-      { path: 'profissional/agendamentos',     element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/agendamentos']}><MinhaAgenda /></ProtectedRoute> },
-      { path: 'profissional/horarios',         element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/horarios']}><ProfissionalHorarios /></ProtectedRoute> },
-      { path: 'profissional/servicos',         element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']}><ProfissionalServicos /></ProtectedRoute> },
-      { path: 'profissional/comissoes',        element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comissoes']}><ProfissionalComissoes /></ProtectedRoute> },
-      { path: 'profissional/comandas',         element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comandas']}><ProfissionalComandas /></ProtectedRoute> },
-      { path: 'profissional/produtos',         element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/produtos']}><ProfissionalProdutos /></ProtectedRoute> },
-      { path: 'profissional/pedidos-produtos', element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/pedidos-produtos']}><ProfissionalPedidosProdutos /></ProtectedRoute> },
+      { path: 'profissional',                  handle: { title: 'Agenda' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional']}><ProfissionalAgenda /></ProtectedRoute> },
+      { path: 'profissional/agendamentos',     handle: { title: 'Agendamentos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/agendamentos']}><MinhaAgenda /></ProtectedRoute> },
+      { path: 'profissional/horarios',         handle: { title: 'Meus horários' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/horarios']}><ProfissionalHorarios /></ProtectedRoute> },
+      { path: 'profissional/servicos',         handle: { title: 'Meus serviços' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']}><ProfissionalServicos /></ProtectedRoute> },
+      { path: 'profissional/comissoes',        handle: { title: 'Minhas comissões' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comissoes']}><ProfissionalComissoes /></ProtectedRoute> },
+      { path: 'profissional/comandas',         handle: { title: 'Comandas' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comandas']}><ProfissionalComandas /></ProtectedRoute> },
+      { path: 'profissional/produtos',         handle: { title: 'Produtos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/produtos']}><ProfissionalProdutos /></ProtectedRoute> },
+      { path: 'profissional/pedidos-produtos', handle: { title: 'Pedidos de produtos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/pedidos-produtos']}><ProfissionalPedidosProdutos /></ProtectedRoute> },
 
       // Cliente
-      { path: 'cliente',              element: <ProtectedRoute allowedRoles={ALL}><ClienteDashboard /></ProtectedRoute> },
-      { path: 'cliente/agendamentos', element: <ProtectedRoute allowedRoles={ALL}><MeusAgendamentos /></ProtectedRoute> },
-      { path: 'cliente/combos',       element: <ProtectedRoute allowedRoles={ALL}><MeusCombos /></ProtectedRoute> },
-      { path: 'cliente/comandas',     element: <ProtectedRoute allowedRoles={ALL}><MinhasComandas /></ProtectedRoute> },
+      { path: 'cliente',              handle: { title: 'Início' }, element: <ProtectedRoute allowedRoles={ALL}><ClienteDashboard /></ProtectedRoute> },
+      { path: 'cliente/agendamentos', handle: { title: 'Meus agendamentos' }, element: <ProtectedRoute allowedRoles={ALL}><MeusAgendamentos /></ProtectedRoute> },
+      { path: 'cliente/combos',       handle: { title: 'Meus combos' }, element: <ProtectedRoute allowedRoles={ALL}><MeusCombos /></ProtectedRoute> },
+      { path: 'cliente/comandas',     handle: { title: 'Minhas comandas' }, element: <ProtectedRoute allowedRoles={ALL}><MinhasComandas /></ProtectedRoute> },
     ],
   },
 
   // ── Raiz e erros ───────────────────────────────────────────────
   { path: '/', element: <Navigate to="/login" replace /> },
-  { path: '/nao-autorizado', element: <NaoAutorizado /> },
-  { path: '*', element: <NotFound /> },
+  { path: '/nao-autorizado', handle: { title: 'Acesso negado' }, element: <NaoAutorizado /> },
+  { path: '*', handle: { title: 'Página não encontrada' }, element: <NotFound /> },
 ])
+
+// Título da aba: "Dauth | <título da rota>" (handle.title da rota mais específica), ou o nome do sistema.
+function applyDocumentTitle({ matches }) {
+  const title = [...matches].reverse().find((m) => m.route.handle?.title)?.route.handle.title
+  document.title = title ? `Dauth | ${title}` : 'Dauth | Sistema de agendamentos'
+}
+applyDocumentTitle(router.state)
+router.subscribe(applyDocumentTitle)
 
 export default router

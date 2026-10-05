@@ -3,189 +3,241 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import { PageSpinner } from '@/components/ui/Spinner'
 import platformApi from '@/lib/platformApi'
+import useAuthStore from '@/store/authStore'
 import logo from '@/logo-dauth-agendamentos.png'
+import { formatPhone } from '@/lib/phone'
 
+// Link do convite para a equipe (/auth/accept-invite?token=). A conta não foi criada no convite:
+// - logado → Aceitar / Recusar;
+// - não logado → "Já tenho conta" (login volta pra cá) ou "Criar conta" (só se o convite não é de uma conta específica).
+//   A conta criada aqui só ativa ao confirmar o telefone pelo WhatsApp; aí o convite é aceito sozinho.
 export default function AcceptInvitePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
+  const { user, isAuthenticated } = useAuthStore()
 
-  const [inviteInfo, setInviteInfo] = useState(null) // { existingUser, name }
+  const [info, setInfo] = useState(null) // { salonName, name, email, status, expired, forExistingAccount }
   const [loadingInfo, setLoadingInfo] = useState(true)
   const [infoError, setInfoError] = useState(null)
+  const [mode, setMode] = useState('choose') // choose | register
+  const [done, setDone] = useState(null) // 'accepted' | 'declined'
+  const [verifyPhone, setVerifyPhone] = useState(null) // telefone da conta criada aguardando confirmação
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
 
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPass, setShowPass] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
+  const loginUrl = `/login?redirect=${encodeURIComponent(`/auth/accept-invite?token=${token}`)}`
+  const homeUrl = user?.platformRole === 'SalonOwner' ? '/meus-saloes' : '/meus-empregos'
 
   useEffect(() => {
     if (!token) { setLoadingInfo(false); return }
-    platformApi.get(`/salon/invite-info?token=${token}`)
-      .then(r => setInviteInfo(r.data))
-      .catch(err => setInfoError(err.response?.data?.error ?? 'Link de convite inválido ou expirado.'))
+    platformApi.get(`/invitations/${token}`)
+      .then(r => setInfo(r.data))
+      .catch(err => setInfoError(err.response?.data?.error ?? 'Convite inválido ou expirado.'))
       .finally(() => setLoadingInfo(false))
   }, [token])
 
-  if (!token) {
-    return (
-      <Layout>
-        <ErrorBox message="O link de convite está incompleto. Peça ao administrador que envie um novo convite." />
-        <Link to="/login" className="block mt-4 text-[13px] text-ink-3 hover:text-ink transition-colors text-center">
-          Ir para o login
-        </Link>
-      </Layout>
-    )
+  async function respond(action) {
+    setBusy(action)
+    setError(null)
+    try {
+      await platformApi.post(`/invitations/${token}/${action}`)
+      setDone(action === 'accept' ? 'accepted' : 'declined')
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Não foi possível responder ao convite.')
+    } finally {
+      setBusy(null)
+    }
   }
 
+  if (!token) return <Layout><Message text="O link de convite está incompleto. Peça ao salão que envie de novo." /></Layout>
   if (loadingInfo) return <PageSpinner />
+  if (infoError) return <Layout><Message text={infoError} /></Layout>
 
-  if (infoError) {
+  if (done === 'accepted') {
+    return (
+      <Layout title="Convite aceito!">
+        <Card>
+          <p className="text-[13.5px] text-ink-2 mb-5">Você agora faz parte da equipe de <strong>{info.salonName}</strong>.</p>
+          <Button onClick={() => navigate(homeUrl, { replace: true })} className="w-full justify-center">Ir para o salão</Button>
+        </Card>
+      </Layout>
+    )
+  }
+  if (verifyPhone) {
+    return <Layout title="Confirme seu WhatsApp"><ConfirmPhone phone={verifyPhone} salonName={info.salonName} /></Layout>
+  }
+  if (done === 'declined') {
+    return <Layout title="Convite recusado"><Message text={`Você recusou o convite de ${info.salonName}.`} link={{ to: '/', label: 'Voltar' }} /></Layout>
+  }
+  if (info.status === 'accepted') return <Layout><Message text="Este convite já foi aceito." link={{ to: '/login', label: 'Entrar' }} /></Layout>
+  if (info.status === 'declined') return <Layout><Message text="Este convite foi recusado." /></Layout>
+  if (info.expired) return <Layout><Message text={`Este convite expirou. Peça para ${info.salonName} enviar um novo.`} /></Layout>
+
+  const intro = (
+    <p className="text-[13.5px] text-ink-2 mb-5">
+      <strong>{info.salonName}</strong> convidou você para fazer parte da equipe como <strong>profissional</strong>.
+    </p>
+  )
+
+  if (isAuthenticated) {
     return (
       <Layout>
-        <ErrorBox message={infoError} />
-        <Link to="/login" className="block mt-4 text-[13px] text-ink-3 hover:text-ink transition-colors text-center">
-          Ir para o login
-        </Link>
+        <Card>
+          {intro}
+          <p className="text-[12px] text-ink-3 mb-5">Você está conectado como <strong className="text-ink-2">{user?.name}</strong>.</p>
+          {error && <ErrorBox message={error} />}
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => respond('accept')} loading={busy === 'accept'} disabled={!!busy} className="w-full justify-center">Aceitar convite</Button>
+            <Button variant="ghost" onClick={() => respond('decline')} loading={busy === 'decline'} disabled={!!busy} className="w-full justify-center">Recusar</Button>
+          </div>
+        </Card>
       </Layout>
     )
   }
 
-  if (done) {
+  if (mode === 'register') {
     return (
       <Layout>
-        <div className="bg-surface border border-line rounded-[14px] p-6 text-center">
-          <p className="font-display font-medium text-[18px] mb-2">
-            {inviteInfo?.existingUser ? 'Convite aceito!' : 'Conta ativada!'}
-          </p>
-          <p className="text-[13px] text-ink-2 mb-5">
-            {inviteInfo?.existingUser
-              ? 'Você agora faz parte do novo salão. Faça login para acessar.'
-              : 'Seu cadastro foi concluído. Faça login com seu telefone e a senha que você criou.'}
-          </p>
-          <Button onClick={() => navigate('/login')} className="w-full justify-center">
-            Ir para o login
-          </Button>
+        <RegisterForm
+          token={token}
+          info={info}
+          loginUrl={loginUrl}
+          onBack={() => setMode('choose')}
+          onDone={({ phone }) => setVerifyPhone(phone)}
+        />
+      </Layout>
+    )
+  }
+
+  return (
+    <Layout>
+      <Card>
+        {intro}
+        <div className="flex flex-col gap-2">
+          <Button onClick={() => navigate(loginUrl)} className="w-full justify-center">Já tenho conta — entrar</Button>
+          {!info.forExistingAccount && (
+            <Button variant="outline" onClick={() => setMode('register')} className="w-full justify-center">Criar minha conta</Button>
+          )}
         </div>
-      </Layout>
-    )
-  }
+        <p className="text-[12px] text-ink-3 mt-4">
+          {info.forExistingAccount
+            ? 'Entre com seu telefone e senha para aceitar.'
+            : 'Se você já agenda em algum salão pelo Dauth, entre com o telefone e a senha que você já usa.'}
+        </p>
+      </Card>
+    </Layout>
+  )
+}
+
+function RegisterForm({ token, info, loginUrl, onBack, onDone }) {
+  const [name, setName] = useState(info.name ?? '')
+  const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
+  const [hasAccount, setHasAccount] = useState(false)
 
   function validate() {
     const e = {}
-    if (!phone.trim()) e.phone = 'Telefone obrigatório'
-    else if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(phone)) e.phone = 'Formato: (11) 9 9999-9999'
-    if (!password || password.length < 8) e.password = 'Senha deve ter no mínimo 8 caracteres'
-    if (password !== confirmPassword) e.confirmPassword = 'As senhas não coincidem'
+    if (!name.trim()) e.name = 'Nome obrigatório'
+    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(phone)) e.phone = 'Formato: (11) 9 9999-9999'
+    if (password.length < 8) e.password = 'Mínimo 8 caracteres'
+    if (password !== confirm) e.confirm = 'As senhas não coincidem'
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!inviteInfo?.existingUser && !validate()) return
+    if (!validate()) return
     setLoading(true)
+    setHasAccount(false)
     try {
-      const body = inviteInfo?.existingUser
-        ? { token }
-        : { token, phone: phone.trim(), password }
-      await platformApi.post('/salon/accept-invite', body)
-      setDone(true)
+      await platformApi.post(`/invitations/${token}/register`, { name: name.trim(), phone, password })
+      onDone({ phone })
     } catch (err) {
-      setErrors({ api: err.response?.data?.error ?? 'Erro ao aceitar convite. O link pode ter expirado.' })
-    } finally {
+      setErrors({ api: err.response?.data?.error ?? 'Erro ao criar conta.' })
+      setHasAccount(err.response?.data?.code === 'HAS_ACCOUNT')
       setLoading(false)
     }
   }
 
   return (
-    <Layout>
-      <div className="bg-surface border border-line rounded-[14px] p-5 md:p-8">
-        {inviteInfo?.existingUser ? (
-          <>
-            <p className="text-[15px] text-ink mb-1">
-              Olá, <strong>{inviteInfo.name}</strong>!
-            </p>
-            <p className="text-[13px] text-ink-3 mb-6">
-              Você foi convidado para trabalhar em um novo salão. Clique em aceitar para confirmar o vínculo.
-            </p>
-
-            {errors.api && <ErrorBox message={errors.api} />}
-
-            <form onSubmit={handleSubmit} noValidate>
-              <Button type="submit" loading={loading} className="w-full justify-center mt-2">
-                Aceitar convite
-              </Button>
-            </form>
-          </>
-        ) : (
-          <>
-            <p className="text-[13px] text-ink-3 mb-6">
-              Escolha seu telefone e senha para acessar o sistema.
-            </p>
-
-            {errors.api && <ErrorBox message={errors.api} />}
-
-            <form onSubmit={handleSubmit} noValidate>
-              <Field label="Telefone" error={errors.phone}>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={e => setPhone(formatPhone(e.target.value))}
-                  placeholder="(11) 9 9999-9999"
-                  className={inputCls(errors.phone)}
-                />
-              </Field>
-
-              <Field label="Senha" error={errors.password}>
-                <div className="relative">
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Mínimo 8 caracteres"
-                    className={inputCls(errors.password) + ' pr-10'}
-                  />
-                  <EyeToggle show={showPass} onToggle={() => setShowPass(v => !v)} />
-                </div>
-              </Field>
-
-              <Field label="Confirmar senha" error={errors.confirmPassword}>
-                <div className="relative">
-                  <input
-                    type={showConfirm ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    placeholder="Repita a senha"
-                    className={inputCls(errors.confirmPassword) + ' pr-10'}
-                  />
-                  <EyeToggle show={showConfirm} onToggle={() => setShowConfirm(v => !v)} />
-                </div>
-              </Field>
-
-              <Button type="submit" loading={loading} className="w-full justify-center mt-2">
-                Ativar minha conta
-              </Button>
-            </form>
-          </>
-        )}
-      </div>
-    </Layout>
+    <Card>
+      <p className="text-[13px] text-ink-3 mb-5">
+        Crie sua conta para entrar na equipe de <strong className="text-ink-2">{info.salonName}</strong>.
+        {info.email && <> Seu email será <span className="font-mono text-ink-2">{info.email}</span>.</>}
+      </p>
+      {errors.api && <ErrorBox message={errors.api} />}
+      {hasAccount && (
+        <Link to={loginUrl} className="block mb-4 text-[13px] text-brand font-medium hover:underline">Entrar com minha conta →</Link>
+      )}
+      <form onSubmit={handleSubmit} noValidate autoComplete="off">
+        <Field label="Nome completo" error={errors.name}>
+          <input value={name} onChange={e => setName(e.target.value)} className={inputCls(errors.name)} />
+        </Field>
+        <Field label="Telefone (será seu login)" error={errors.phone}>
+          <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(11) 9 9999-9999" className={inputCls(errors.phone)} />
+        </Field>
+        <Field label="Senha" error={errors.password}>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" className={inputCls(errors.password)} />
+        </Field>
+        <Field label="Confirmar senha" error={errors.confirm}>
+          <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls(errors.confirm)} />
+        </Field>
+        <Button type="submit" loading={loading} className="w-full justify-center mt-1">Criar conta</Button>
+        <button type="button" onClick={onBack} className="block w-full mt-3 text-[13px] text-ink-3 hover:text-ink transition-colors cursor-pointer">Voltar</button>
+      </form>
+    </Card>
   )
 }
 
-function Layout({ children }) {
+// Conta criada pelo link: falta confirmar o telefone. Ao confirmar, o convite é aceito e a pessoa entra normalmente.
+function ConfirmPhone({ phone, salonName }) {
+  const [sending, setSending] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  async function resend() {
+    setSending(true)
+    setMsg(null)
+    try {
+      await platformApi.post('/auth/resend-verification-phone', { phone })
+      setMsg('Link reenviado.')
+    } catch {
+      setMsg('Não foi possível reenviar agora. Tente de novo em instantes.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Card>
+      <p className="text-[13.5px] text-ink-2 mb-2">
+        Enviamos um link de confirmação para o WhatsApp <strong className="font-mono">{phone}</strong>.
+      </p>
+      <p className="text-[13px] text-ink-3 mb-5">
+        Abra o link para ativar sua conta. Assim que confirmar, você entra na equipe de <strong className="text-ink-2">{salonName}</strong> e já pode fazer login com esse telefone.
+      </p>
+      <Link to="/login" className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand-dark transition-colors w-full">
+        Ir para o login
+      </Link>
+      <button type="button" onClick={resend} disabled={sending} className="block w-full mt-3 text-[13px] text-ink-3 hover:text-ink transition-colors cursor-pointer disabled:opacity-60">
+        {sending ? 'Reenviando…' : 'Não recebeu? Reenviar link'}
+      </button>
+      {msg && <p className="text-[12px] text-ink-3 text-center mt-2">{msg}</p>}
+    </Card>
+  )
+}
+
+function Layout({ title = 'Convite para a equipe', children }) {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <Brand />
-          <h1 className="font-display font-medium text-[28px] tracking-tight mt-4">Aceitar convite</h1>
-          <p className="text-ink-3 text-[13px] mt-1">Você foi convidado como profissional</p>
+          <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mx-auto" />
+          <h1 className="font-display font-medium text-[26px] tracking-tight mt-4 text-center">{title}</h1>
         </div>
         {children}
       </div>
@@ -193,49 +245,34 @@ function Layout({ children }) {
   )
 }
 
-function ErrorBox({ message }) {
+function Card({ children }) {
+  return <div className="bg-surface border border-line rounded-[14px] p-5 md:p-7">{children}</div>
+}
+
+function Message({ text, link = { to: '/login', label: 'Ir para o login' } }) {
   return (
-    <div className="mb-4 px-3.5 py-2.5 rounded-md bg-danger-soft border border-danger/20 text-[13px] text-danger">
-      {message}
-    </div>
+    <Card>
+      <p className="text-[13.5px] text-ink-2 text-center">{text}</p>
+      <Link to={link.to} className="block mt-4 text-[13px] text-ink-3 hover:text-ink transition-colors text-center">{link.label}</Link>
+    </Card>
   )
+}
+
+function ErrorBox({ message }) {
+  return <div className="mb-4 px-3.5 py-2.5 rounded-md bg-danger-soft border border-danger/20 text-[13px] text-danger">{message}</div>
 }
 
 function Field({ label, error, children }) {
   return (
-    <div className="flex flex-col gap-1.5 mb-4">
-      <label className="text-[11px] text-ink-3 font-medium uppercase tracking-wider">{label}</label>
+    // <label> em volta: o texto vira o nome acessível do campo (e clicar nele foca o campo)
+    <label className="flex flex-col gap-1.5 mb-4">
+      <span className="text-[11px] text-ink-3 font-medium uppercase tracking-wider">{label}</span>
       {children}
       {error && <span className="text-[11px] text-danger">{error}</span>}
-    </div>
+    </label>
   )
 }
 
 function inputCls(error) {
   return `h-[42px] w-full px-[14px] rounded-md border bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors ${error ? 'border-danger' : 'border-line'}`
-}
-
-function EyeToggle({ show, onToggle }) {
-  return (
-    <button type="button" onClick={onToggle}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink transition-colors cursor-pointer">
-      {show ? (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-      ) : (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-      )}
-    </button>
-  )
-}
-
-function formatPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
-  if (digits.length <= 2) return digits.length ? `(${digits}` : ''
-  if (digits.length <= 3) return `(${digits.slice(0, 2)}) ${digits[2]}`
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits[2]} ${digits.slice(3)}`
-  return `(${digits.slice(0, 2)}) ${digits[2]} ${digits.slice(3, 7)}-${digits.slice(7)}`
-}
-
-function Brand() {
-  return <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mx-auto" />
 }

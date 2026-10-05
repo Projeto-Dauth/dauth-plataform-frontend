@@ -17,21 +17,12 @@ import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import MoneyValue from '@/components/ui/MoneyValue'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 const navItems = navItemsByRole['Admin']
 
 const EMPTY_PKG = { Name: '', Price: '', Available_until: '' }
 const EMPTY_DRAFT_ITEM = { service_id: '', quantity: 1, unit_price: '', commission_override: '' }
-
-function formatCurrency(v) {
-  return `R$ ${Number(v).toFixed(2).replace('.', ',')}`
-}
-
-function formatDate(iso) {
-  if (!iso) return null
-  const [y, m, d] = iso.split('T')[0].split('-')
-  return `${d}/${m}/${y}`
-}
 
 const SOLD_STATUS_FILTERS = [
   { key: '', label: 'Todos' },
@@ -50,6 +41,22 @@ function PacotesVendidos() {
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
   const [concludingId, setConcludingId] = useState(null)
+  const [cancellingId, setCancellingId] = useState(null)
+
+  async function handleCancelSale(combo) {
+    setCancellingId(combo.UUID)
+    try {
+      await api.patch(`/package/client/${combo.UUID}/cancel`)
+      addToast('Venda do pacote cancelada', 'success')
+      reload()
+      return true
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao cancelar venda', 'error')
+      return false
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   const { items, loading, loadingMore, hasMore, loadMore, reload } = usePaginatedList(
     (page, limit) => api.get('/package/sold', { params: { page, limit, status: status || undefined, search: search || undefined } }).then(r => r.data),
@@ -62,8 +69,10 @@ function PacotesVendidos() {
       await api.patch(`/package/client/${combo.UUID}/conclude`, { Note: note })
       addToast('Pacote marcado como concluído', 'success')
       reload()
+      return true
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao concluir pacote', 'error')
+      return false
     } finally {
       setConcludingId(null)
     }
@@ -100,6 +109,8 @@ function PacotesVendidos() {
                 clientName={c.Client?.Name ?? '—'}
                 onConclude={handleConclude}
                 concluding={concludingId === c.UUID}
+                onCancelSale={handleCancelSale}
+                cancelling={cancellingId === c.UUID}
               />
             ))}
           </div>
