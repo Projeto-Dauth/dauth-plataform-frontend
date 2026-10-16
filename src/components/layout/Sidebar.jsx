@@ -4,15 +4,14 @@ import logo from '@/logo-dauth-agendamentos.png'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import api from '@/lib/api'
-import platformApi from '@/lib/platformApi'
 import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
 import useNotificationStore from '@/store/notificationStore'
 import { usePermission } from '@/hooks/usePermission'
 import { NAV_ITEM_FEATURE, salonHasFeature, planRequiredFor } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
-import { canEnterSalon } from '@/lib/salonAccess'
 import { navItemsByRole } from '@/config/navItems'
+import SalonSwitcher from '@/components/layout/SalonSwitcher'
 
 function NavGroup({ item, onClose }) {
   const location = useLocation()
@@ -54,104 +53,6 @@ function NavGroup({ item, onClose }) {
               </NavLink>
             )
           })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
-
-function SalonSwitcher({ currentSalonId, onClose: closeSidebar }) {
-  const [open, setOpen] = useState(false)
-  const [salons, setSalons] = useState([])
-  const [loading, setLoading] = useState(false)
-  const setSalon = useSalonStore((s) => s.setSalon)
-  const { user, updateUser } = useAuthStore()
-  const navigate = useNavigate()
-  const ref = useRef(null)
-  const isOwner = user?.platformRole === 'SalonOwner'
-  const manageTo = isOwner ? '/meus-saloes' : '/meus-empregos'
-
-  useEffect(() => {
-    if (!open) return
-    setLoading(true)
-    platformApi.get('/salon/my')
-      .then(({ data }) => setSalons(Array.isArray(data) ? data : []))
-      .catch(() => { })
-      .finally(() => setLoading(false))
-  }, [open])
-
-  useEffect(() => {
-    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  async function handleSwitch(member) {
-    setOpen(false)
-    if (closeSidebar) closeSidebar()
-    setSalon(
-      { id: member.salonId, name: member.salon.name, slug: member.salon.slug, plan: member.salon.plan, status: member.salon.status, colorPalette: member.salon.colorPalette ?? null },
-      member.role, member.id
-    )
-    try {
-      const { data: perfil } = await api.get('/users/perfil/me', { headers: { 'x-salon-id': member.salonId } })
-      let permissions = null
-      if (['Profissional', 'Servico'].includes(perfil.Role)) {
-        permissions = await api.get(`/professional/${perfil.UUID}/permissions`, {
-          headers: { 'x-salon-id': member.salonId },
-        }).then(r => r.data.data).catch(() => null)
-      }
-      updateUser({ id: perfil.UUID, publicId: perfil.UUID, role: perfil.Role, must_change_password: perfil.Must_change_password, permissions })
-    } catch { }
-    navigate(`/${member.salon.slug}/${ROLE_PATH[member.role] ?? 'admin'}`, { replace: true })
-  }
-
-  const others = salons.filter(m => m.salonId !== currentSalonId && canEnterSalon(m))
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
-        title="Trocar salão"
-        className="p-1.5 rounded-lg text-ink-4 hover:bg-surface-3 transition-colors shrink-0 cursor-pointer"
-      >
-        <Icon name="arrowLeftRight" size={15} />
-      </button>
-
-      {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-52 bg-surface border border-line rounded-xl shadow-lg overflow-hidden z-50">
-          <div className="px-3 py-2 border-b border-line">
-            <span className="text-[10.5px] font-mono uppercase tracking-widest text-ink-3">Trocar salão</span>
-          </div>
-          {loading ? (
-            <div className="px-3 py-3 text-[12px] text-ink-3">Carregando…</div>
-          ) : others.length === 0 ? (
-            <div className="px-3 py-3 text-[12px] text-ink-3">Nenhum outro salão.</div>
-          ) : (
-            <div className="py-1">
-              {others.map(member => (
-                <button key={member.id} onClick={() => handleSwitch(member)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-2 transition-colors text-left">
-                  <div className="w-6 h-6 rounded-md bg-brand-soft flex items-center justify-center shrink-0">
-                    <span className="font-display font-bold text-[11px] text-brand">{member.salon.name.charAt(0)}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[12.5px] font-medium text-ink truncate">{member.salon.name}</div>
-                    <div className="text-[10.5px] text-ink-3 font-mono">{member.role}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => { setOpen(false); if (closeSidebar) closeSidebar(); navigate(manageTo) }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 border-t border-line text-[12.5px] font-medium text-brand hover:bg-surface-2 transition-colors text-left"
-          >
-            <Icon name={isOwner ? 'plus' : 'scissors'} size={13} />
-            {isOwner ? 'Gerenciar meus salões' : 'Meus empregos'}
-          </button>
         </div>
       )}
     </div>

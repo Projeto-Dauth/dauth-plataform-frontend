@@ -27,5 +27,7 @@ test('cliente se cadastra, confirma o telefone pelo link e entra', async ({ page
   await expect(page.getByRole('heading', { name: 'Telefone confirmado!' })).toBeVisible()
 
   await loginByUi(page, phone, password)
-  await expect(page).toHaveURL(/\/marketplace$/)
+  // Conta nova, sem vínculo: cai em Meus salões pedindo o código do salão
+  await expect(page).toHaveURL(/\/meus-saloes$/)
+  await expect(page.getByRole('heading', { name: 'Você ainda não tem vínculo com nenhum salão' })).toBeVisible()
 })

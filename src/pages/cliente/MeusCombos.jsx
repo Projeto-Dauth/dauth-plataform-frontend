@@ -1,26 +1,16 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useNavigate, useParams } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
-import Avatar from '@/components/ui/Avatar'
+import ClienteSidebar from '@/components/layout/ClienteSidebar'
 import Icon from '@/components/ui/Icons'
 import ComboCard from '@/components/ui/ComboCard'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
-import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
 import { useTour } from '@/hooks/useTour'
 import { clienteCombosSteps } from '@/tours/clienteCombosTour'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate } from '@/lib/format'
-
-const navItemsFor = (salonSlug) => [
-  { to: `/${salonSlug}/cliente`, end: true, icon: 'cal', label: 'Início' },
-  { to: `/${salonSlug}/cliente/agendamentos`, icon: 'receipt', label: 'Meus agendamentos' },
-  { to: `/${salonSlug}/cliente/combos`, icon: 'package', label: 'Meus combos' },
-  { to: `/${salonSlug}/cliente/comandas`, icon: 'cash', label: 'Minhas comandas' },
-  { to: `/${salonSlug}/perfil`, icon: 'users', label: 'Perfil e senha' },
-]
 
 function ExplorarCard({ pkg }) {
   const items = pkg.items ?? []
@@ -60,74 +50,6 @@ function ExplorarCard({ pkg }) {
         <p className="text-[12px] text-ink-3">Interesse? Fale com a equipe do salão para adquirir este combo.</p>
       </div>
     </div>
-  )
-}
-
-function ClienteSidebar({ user, onClose }) {
-  const { salonSlug } = useParams()
-  const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
-
-  async function handleLogout() {
-    try { await api.post('/auth/logout') } catch {}
-    logout()
-    navigate('/login', { replace: true })
-  }
-
-  return (
-    <aside className="flex flex-col gap-0.5 bg-surface-2 border-r border-line px-4 py-6 w-60 min-w-[240px] h-full overflow-y-auto">
-      <div className="flex items-center gap-2.5 px-2 pb-4 mb-1 border-b border-line">
-        <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
-        <div className="flex-1 font-display font-semibold text-[13.5px] truncate">Dauth Agendamentos</div>
-        {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg text-ink-4 hover:bg-surface-3 transition-colors">
-            <Icon name="x" size={16} />
-          </button>
-        )}
-      </div>
-      <div className="text-center py-3 pb-[18px] border-b border-line mb-3">
-        <Avatar name={user?.name ?? ''} index={2} size="xl" className="mx-auto mb-2" />
-        <div className="font-display font-medium text-[15px]">{user?.name}</div>
-        <div className="font-mono text-[11px] text-ink-3">cliente</div>
-      </div>
-      {navItemsFor(salonSlug).map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          onClick={onClose}
-          className={({ isActive }) =>
-            `flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-2 hover:bg-surface-3 hover:text-ink transition-colors
-            ${isActive ? 'bg-surface text-ink border border-line shadow-xs' : ''}`
-          }
-        >
-          <Icon name={item.icon} size={16} />
-          {item.label}
-        </NavLink>
-      ))}
-      <div className="flex-1" />
-      {user?.role === 'Profissional' && (
-        <NavLink to={`/${salonSlug}/profissional`} onClick={onClose}>
-          <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-surface border border-line text-ink-2 cursor-pointer hover:border-ink-3 transition-colors mb-2">
-            <Icon name="arrowLeft" size={14} />Voltar ao painel
-          </button>
-        </NavLink>
-      )}
-      <NavLink to={`/${salonSlug}/agendar`} onClick={onClose}>
-        <button className="w-full inline-flex justify-center items-center gap-2 px-4 py-[10px] rounded-md font-medium text-md bg-brand text-white border border-brand cursor-pointer hover:bg-[#72391f] transition-colors">
-          <Icon name="plus" size={14} />Novo agendamento
-        </button>
-      </NavLink>
-      <div className="border-t border-line mt-2.5">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-3 hover:bg-danger-soft hover:text-danger transition-colors cursor-pointer mt-0.5"
-        >
-          <Icon name="logout" size={16} />
-          Sair
-        </button>
-      </div>
-    </aside>
   )
 }
 

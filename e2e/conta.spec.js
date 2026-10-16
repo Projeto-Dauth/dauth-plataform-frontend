@@ -25,7 +25,7 @@ test('esqueci a senha: o link cria a senha nova e a antiga deixa de valer', asyn
   await expect(page).toHaveURL(/\/login$/)
 
   await loginByUi(page, account.phone, newPassword)
-  await expect(page).toHaveURL(/\/marketplace$/)
+  await expect(page).toHaveURL(/\/meus-saloes$/)
 
   const other = await newUserPage(browser)
   await loginByUi(other, account.phone, account.password) // senha antiga
@@ -61,7 +61,7 @@ test('troca de telefone: só vale depois de confirmar o número novo', async ({ 
 
   const other = await newUserPage(browser)
   await loginByUi(other, newPhone, account.password)
-  await expect(other).toHaveURL(/\/marketplace$/)
+  await expect(other).toHaveURL(/\/meus-saloes$/)
   const third = await newUserPage(browser)
   await loginByUi(third, account.phone, account.password) // número antigo
   await expect(third.getByText('Telefone ou senha inválidos.')).toBeVisible()

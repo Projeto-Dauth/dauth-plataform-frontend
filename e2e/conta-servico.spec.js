@@ -44,9 +44,9 @@ test('Admin cria a conta de serviço pela tela; ela entra com o (00) e vê só A
 
   const notebook = await newUserPage(browser)
   await loginByUi(notebook, phone, 'Servico@123')
-  await expect(notebook).toHaveURL(/\/meus-empregos$/)
+  await expect(notebook).toHaveURL(/\/meus-saloes$/)
   await expect(notebook.getByText('Conta de serviço')).toBeVisible()
-  await notebook.getByText(s.salon.name).click()
+  await notebook.getByRole('button', { name: `Entrar em ${s.salon.name}` }).click()
   await expect(notebook).toHaveURL(new RegExp(`/${s.salon.slug}/admin$`))
 
   for (const name of ['Agenda', 'Agendamentos', 'Clientes', 'Serviços', 'Caixa']) {

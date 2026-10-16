@@ -15,10 +15,7 @@ import EsqueciSenhaPage from '@/pages/auth/EsqueciSenhaPage'
 import RedefinirSenhaPage from '@/pages/auth/RedefinirSenhaPage'
 
 // Platform
-import MarketplacePage from '@/pages/platform/MarketplacePage'
 import MeusSaloesPage from '@/pages/platform/MeusSaloesPage'
-import MeusEmpregosPage from '@/pages/platform/MeusEmpregosPage'
-import SalaoPublicPage from '@/pages/platform/SalaoPublicPage'
 import MinhaContaPage from '@/pages/platform/MinhaContaPage'
 
 // Produto — Admin
@@ -59,7 +56,6 @@ import DetalhesAgendamento from '@/pages/shared/DetalhesAgendamento'
 
 // Público
 import AgendarPage from '@/pages/public/AgendarPage'
-import PortalPage from '@/pages/public/PortalPage'
 import PrivacidadePage from '@/pages/public/PrivacidadePage'
 import TermosPage from '@/pages/public/TermosPage'
 import NaoAutorizado from '@/pages/NaoAutorizado'
@@ -87,11 +83,6 @@ const router = createBrowserRouter([
 
   // ── Plataforma ─────────────────────────────────────────────────
   {
-    path: '/marketplace',
-    handle: { title: 'Marketplace' },
-    element: <ProtectedRoute platformRoles={['Cliente', 'SalonOwner']}><MarketplacePage /></ProtectedRoute>,
-  },
-  {
     path: '/minha-conta',
     handle: { title: 'Minha conta' },
     element: <ProtectedRoute platformRoles={['Cliente', 'SalonOwner']}><MinhaContaPage /></ProtectedRoute>,
@@ -99,16 +90,10 @@ const router = createBrowserRouter([
   {
     path: '/meus-saloes',
     handle: { title: 'Meus salões' },
-    element: <ProtectedRoute platformRoles={['SalonOwner']}><MeusSaloesPage /></ProtectedRoute>,
-  },
-  {
-    path: '/meus-empregos',
-    handle: { title: 'Meus empregos' },
-    element: <ProtectedRoute platformRoles={['Cliente']}><MeusEmpregosPage /></ProtectedRoute>,
+    element: <ProtectedRoute platformRoles={['Cliente', 'SalonOwner']}><MeusSaloesPage /></ProtectedRoute>,
   },
 
   // ── Público ────────────────────────────────────────────────────
-  { path: '/salao/:slug',   handle: { title: 'Salão' }, element: <SalaoPublicPage /> },
   { path: '/privacidade',   handle: { title: 'Privacidade' }, element: <PrivacidadePage /> },
   { path: '/termos',        handle: { title: 'Termos de uso' }, element: <TermosPage /> },
 
@@ -122,7 +107,6 @@ const router = createBrowserRouter([
       { path: 'trocar-senha',        handle: { title: 'Trocar senha' }, element: <ProtectedRoute allowedRoles={ALL}><TrocarSenha /></ProtectedRoute> },
       { path: 'agendamento/:id',     handle: { title: 'Agendamento' }, element: <ProtectedRoute allowedRoles={ALL}><DetalhesAgendamento /></ProtectedRoute> },
       { path: 'agendar',             handle: { title: 'Agendar' }, element: <AgendarPage /> },
-      { path: 'portal',              handle: { title: 'Portal' }, element: <PortalPage /> },
 
       // Admin
       { path: 'admin',                         handle: { title: 'Agenda' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin']}><AdminAgenda /></ProtectedRoute> },

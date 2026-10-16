@@ -168,6 +168,8 @@ test('pacote vendido e nunca pago: cancelar a venda pela tela libera a cliente p
 
   await page.goto(`/${SEED_SALON_SLUG}/admin/combos?view=vendidos`)
   await page.getByPlaceholder('Buscar por cliente...').fill(clientName)
+  // A busca é no servidor: espera a lista filtrar (antes dela, aparecem os pacotes pendentes de outros testes)
+  await expect(page.getByRole('button', { name: 'Cancelar venda' })).toHaveCount(1)
   await page.getByRole('button', { name: 'Cancelar venda' }).click()
   await page.getByRole('button', { name: 'Cancelar venda' }).last().click() // confirmação
   await expect(page.getByText('Venda do pacote cancelada')).toBeVisible()

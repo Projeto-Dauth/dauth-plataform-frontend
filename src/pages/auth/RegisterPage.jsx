@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import logo from '@/logo-dauth-agendamentos.png'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import platformApi from '@/lib/platformApi'
@@ -40,9 +41,7 @@ export default function RegisterPage() {
       {/* ── Painel esquerdo — brand ── */}
       <div className="hidden lg:flex flex-col justify-between w-[420px] shrink-0 bg-brand grain px-12 py-14">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-            <span className="font-serif text-white text-xl">D</span>
-          </div>
+          <img src={logo} alt="Dauth" className="w-10 h-10 rounded-lg object-cover" />
           <span className="font-display font-semibold text-[14px] text-white/80">Dauth</span>
         </div>
         <div>
@@ -61,9 +60,7 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-bg">
         <div className="w-full max-w-[400px] animate-fade-in">
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
-            <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-              <span className="font-serif text-white">D</span>
-            </div>
+            <img src={logo} alt="Dauth" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-display font-semibold text-[14px] text-ink">Dauth</span>
           </div>
 

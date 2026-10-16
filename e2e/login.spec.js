@@ -10,17 +10,18 @@ test.describe('Login', () => {
     await expect(page.getByText('Salão Demo')).toBeVisible()
   })
 
-  test('profissional entra por telefone e vai para Meus empregos', async ({ page }) => {
+  test('profissional entra por telefone e vai para Meus salões', async ({ page }) => {
     const { phone, password } = SEED_USERS.profissional
     await loginByUi(page, phone, password)
-    await expect(page).toHaveURL(/\/meus-empregos$/)
+    await expect(page).toHaveURL(/\/meus-saloes$/)
     await expect(page.getByText('Salão Demo')).toBeVisible()
   })
 
-  test('cliente entra por telefone e vai para o Marketplace', async ({ page }) => {
+  test('cliente entra por telefone e vai para Meus salões', async ({ page }) => {
     const { phone, password } = SEED_USERS.cliente
     await loginByUi(page, phone, password)
-    await expect(page).toHaveURL(/\/marketplace$/)
+    await expect(page).toHaveURL(/\/meus-saloes$/)
+    await expect(page.getByText('Salão Demo')).toBeVisible()
   })
 
   test('senha errada mostra erro e continua no login', async ({ page }) => {

@@ -38,6 +38,6 @@ test('pessoa convidada cria a conta pelo link e entra na equipe', async ({ page,
   await expect(maria.getByText(`Você já faz parte da equipe de ${salon.name}`)).toBeVisible()
 
   await loginByUi(maria, phone, password)
-  await expect(maria).toHaveURL(/\/meus-empregos$/)
+  await expect(maria).toHaveURL(/\/meus-saloes$/)
   await expect(maria.getByText(salon.name)).toBeVisible()
 })

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import logo from '@/logo-dauth-agendamentos.png'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
@@ -35,10 +36,8 @@ export default function LoginPage() {
       const redirect = searchParams.get('redirect')
       if (redirect?.startsWith('/')) return navigate(redirect, { replace: true })
 
-      const { platformRole, memberRole } = data.user
-      if (platformRole === 'SalonOwner') return navigate('/meus-saloes', { replace: true })
-      if (['Profissional', 'Admin', 'Servico'].includes(memberRole)) return navigate('/meus-empregos', { replace: true })
-      navigate('/marketplace', { replace: true })
+      // Todo mundo passa por "Meus salões" (lista dos vínculos; sem nenhum, pede o código do salão)
+      navigate('/meus-saloes', { replace: true })
     } catch (err) {
       setApiError(err.response?.data?.error ?? 'Erro ao entrar. Tente novamente.')
     }
@@ -58,9 +57,7 @@ export default function LoginPage() {
       {/* Brand section — desktop only */}
       <div className="hidden md:flex flex-col justify-between w-[420px] shrink-0 bg-brand px-12 py-14 grain">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-lg bg-white/10 flex items-center justify-center">
-            <span className="font-serif text-white text-xl">D</span>
-          </div>
+          <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover" />
           <span className="font-display font-semibold text-[14px] text-white/90">Dauth</span>
         </div>
         <div>
@@ -80,9 +77,7 @@ export default function LoginPage() {
 
           {/* Brand — mobile only */}
           <div className="flex flex-col items-center mb-8 md:hidden">
-            <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
-              <span className="font-serif text-white text-2xl">D</span>
-            </div>
+            <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
             <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
           </div>
 

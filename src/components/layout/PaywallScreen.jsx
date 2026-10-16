@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import useSalonStore from '@/store/salonStore'
-import useAuthStore from '@/store/authStore'
 
 // Textos por motivo do bloqueio (lib/salonAccess.js#paywallReason)
 const COPY = {
@@ -20,11 +19,8 @@ const COPY = {
 // seletor do upgrade); os demais só são avisados.
 export default function PaywallScreen({ reason }) {
   const { salon, role, memberId, setSalon } = useSalonStore()
-  const platformRole = useAuthStore((s) => s.user?.platformRole)
   const copy = COPY[reason]
-  const backTo = platformRole === 'SalonOwner'
-    ? { to: '/meus-saloes', label: 'Voltar para Meus salões' }
-    : { to: '/meus-empregos', label: 'Voltar para Meus empregos' }
+  const backTo = { to: '/meus-saloes', label: 'Voltar para Meus salões' }
 
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-4 py-12">

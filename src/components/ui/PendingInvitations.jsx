@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import platformApi from '@/lib/platformApi'
 
-// Aviso "O Salão X convidou você para a equipe" com Aceitar/Recusar (Marketplace e Meus empregos).
+// Aviso "O Salão X convidou você para a equipe" com Aceitar/Recusar (Meus salões).
 // Some sozinho quando não há convite pendente.
 export default function PendingInvitations({ onAccepted }) {
   const [invitations, setInvitations] = useState([])

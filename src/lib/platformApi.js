@@ -1,7 +1,7 @@
 import axios from 'axios'
 import useAuthStore from '@/store/authStore'
 
-// API da plataforma (porta 3000) — marketplace, salões, auth Better Auth
+// API da plataforma (porta 3000) — salões, vínculo por código, auth Better Auth
 const platformApi = axios.create({
   baseURL: import.meta.env.VITE_PLATFORM_URL,
   headers: { 'Content-Type': 'application/json' },

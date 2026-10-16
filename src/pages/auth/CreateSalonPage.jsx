@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import logo from '@/logo-dauth-agendamentos.png'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
@@ -67,9 +68,7 @@ export default function CreateSalonPage() {
     <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md lg:max-w-[784px]">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
-            <span className="font-serif text-white text-2xl">D</span>
-          </div>
+          <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
           <h1 className="font-display font-medium text-[28px] tracking-tight">Configure seu salão</h1>
           <p className="text-sm text-ink-3 mt-1">Vamos criar o seu espaço na plataforma</p>
         </div>

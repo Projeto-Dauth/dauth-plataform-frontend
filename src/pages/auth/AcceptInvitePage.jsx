@@ -27,7 +27,7 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState(null)
 
   const loginUrl = `/login?redirect=${encodeURIComponent(`/auth/accept-invite?token=${token}`)}`
-  const homeUrl = user?.platformRole === 'SalonOwner' ? '/meus-saloes' : '/meus-empregos'
+  const homeUrl = '/meus-saloes'
 
   useEffect(() => {
     if (!token) { setLoadingInfo(false); return }

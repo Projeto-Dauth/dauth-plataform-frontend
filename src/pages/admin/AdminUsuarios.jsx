@@ -26,7 +26,7 @@ import { batchPayExtraMessage } from '@/lib/creditToast'
 import { MODULES, SERVICE_ACCOUNT_MODULES } from '@/config/modules'
 import { excludeMonitorAdmins } from '@/config/monitorAdmins'
 import MoneyValue from '@/components/ui/MoneyValue'
-import { formatCurrency, formatDate } from '@/lib/format'
+import { formatCurrency, formatDate, formatMonthYear } from '@/lib/format'
 import { formatPhone } from '@/lib/phone'
 
 const navItems = navItemsByRole['Admin']
@@ -348,6 +348,7 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
             <div className="flex-1 min-w-0">
               <h4 className="font-display font-medium text-[15px] tracking-tight truncate">{client.Name}</h4>
               <p className="font-mono text-[11px] text-ink-3">{client.Phone ?? '—'}</p>
+              {client.created_at && <p className="text-[11px] text-ink-4">Cliente desde {formatMonthYear(client.created_at)}</p>}
             </div>
             <Chip variant={client.active ? 'success' : 'danger'}>{client.active ? 'Ativo' : 'Inativo'}</Chip>
             <button

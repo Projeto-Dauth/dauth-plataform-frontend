@@ -1,10 +1,17 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, NavLink, useParams } from 'react-router-dom'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
 import api from '@/lib/api'
+import { formatMonthYear } from '@/lib/format'
+import SalonSwitcher from '@/components/layout/SalonSwitcher'
 import logo from '@/logo-dauth-agendamentos.png'
+
+// Data de entrada no salão (SalonMember.createdAt via /users/perfil/me), guardada por salão: o menu é
+// montado em várias páginas e não precisa buscar de novo a cada uma.
+const memberSinceCache = new Map()
 
 export default function ClienteSidebar({ user, onClose }) {
   const navigate = useNavigate()
@@ -13,6 +20,15 @@ export default function ClienteSidebar({ user, onClose }) {
   const salon = useSalonStore((s) => s.salon)
   const role = useSalonStore((s) => s.role)
   const slug = salonSlug || salon?.slug
+  const [memberSince, setMemberSince] = useState(() => memberSinceCache.get(salon?.id) ?? null)
+
+  useEffect(() => {
+    if (!salon?.id) return
+    if (memberSinceCache.has(salon.id)) return setMemberSince(memberSinceCache.get(salon.id))
+    api.get('/users/perfil/me')
+      .then(({ data }) => { memberSinceCache.set(salon.id, data.created_at ?? null); setMemberSince(data.created_at ?? null) })
+      .catch(() => {})
+  }, [salon?.id])
 
   const navItems = [
     { to: `/${slug}/cliente`, end: true, icon: 'cal', label: 'Início' },
@@ -42,7 +58,7 @@ export default function ClienteSidebar({ user, onClose }) {
       <div className="text-center py-3 pb-[18px] border-b border-line mb-3">
         <Avatar name={user?.name ?? ''} index={2} size="xl" className="mx-auto mb-2" />
         <div className="font-display font-medium text-[15px]">{user?.name}</div>
-        <div className="font-mono text-[11px] text-ink-3">Cliente</div>
+        <div className="font-mono text-[11px] text-ink-3">Cliente{memberSince ? ` desde ${formatMonthYear(memberSince)}` : ''}</div>
       </div>
       {navItems.map((item) => (
         <NavLink
@@ -75,14 +91,8 @@ export default function ClienteSidebar({ user, onClose }) {
           </button>
         </NavLink>
       )}
-      {salon?.name && (
-        <NavLink to={`/salao/${slug}`} onClick={onClose}
-          className="flex items-center gap-2 px-2.5 py-[9px] rounded-lg text-[13px] text-ink-3 hover:bg-surface-3 hover:text-ink transition-colors mt-1">
-          <Icon name="home" size={15} />
-          <span className="truncate">Página do salão</span>
-        </NavLink>
-      )}
       <div className="border-t border-line mt-2.5">
+        <SalonSwitcher currentSalonId={salon?.id} onClose={onClose} label="Trocar salão" />
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2.5 px-2.5 py-[9px] rounded-lg text-[13.5px] text-ink-3 hover:bg-danger-soft hover:text-danger transition-colors cursor-pointer mt-0.5"

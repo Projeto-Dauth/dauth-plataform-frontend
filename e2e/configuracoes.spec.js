@@ -24,3 +24,19 @@ test('desligar o agendamento online bloqueia a página de agendar', async ({ pag
   await page.goto(`/${salon.slug}/agendar`)
   await expect(page.getByRole('heading', { name: 'Agendamento online indisponível' })).toBeVisible()
 })
+
+// A página pública do salão não existe na versão beta: a aba continua nas Configurações, mas só
+// avisa "Em breve" (sem campos). Instagram, equipe e horário voltam quando a página existir.
+test('aba Página pública mostra "Em breve" e não tem campos', async ({ page }) => {
+  await loginAs(page, SEED_USERS.owner)
+  const salon = await createSalon(page)
+
+  await page.goto(`/${salon.slug}/admin/configuracoes`)
+  const tab = page.getByRole('tab', { name: /Página pública/ })
+  await expect(tab).toContainText('Em breve')
+  await tab.click()
+  await expect(page.getByText('Estamos preparando a página pública do salão')).toBeVisible()
+  await expect(page.getByLabel('Instagram')).toHaveCount(0)
+  await expect(page.getByRole('switch', { name: 'Mostrar equipe' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Salvar alterações' })).toHaveCount(0) // aba sem nada para salvar
+})

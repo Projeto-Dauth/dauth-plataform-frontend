@@ -116,11 +116,11 @@ const TABS = [
   { id: 'geral', label: 'Geral' },
   { id: 'agendamento', label: 'Agendamento' },
   { id: 'pagamentos', label: 'Pagamentos' },
-  { id: 'publica', label: 'Página pública' },
+  { id: 'publica', label: 'Página pública', soon: true },
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'plano', label: 'Plano' },
 ]
-const TABS_WITHOUT_SAVE = ['whatsapp', 'plano']
+const TABS_WITHOUT_SAVE = ['publica', 'whatsapp', 'plano']
 
 // businessHours (API: [{ weekday, open, close }] | null) <-> 7 linhas editáveis
 const toHourRows = (hours) => WEEKDAYS.map((_, weekday) => {
@@ -215,6 +215,73 @@ function SkeletonRow() {
       <div style={{ height: 14, width: 100, borderRadius: 6, background: 'rgb(var(--ink) / 0.08)', animation: 'pulse 1.5s ease-in-out infinite' }} />
       <div style={{ height: 44, borderRadius: 10, background: 'rgb(var(--ink) / 0.06)', animation: 'pulse 1.5s ease-in-out infinite' }} />
     </div>
+  )
+}
+
+// Código que o cliente digita em "Meus salões" para se vincular ao salão. Só o Admin vê.
+// Gerar um novo invalida o antigo, mas ninguém que já entrou é desvinculado.
+function JoinCodeSection({ config, salonId, onChange }) {
+  const { addToast } = useToast()
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const trialOver = config.status === 'trial' && config.trialEndsAt && new Date(config.trialEndsAt) <= new Date()
+  const active = config.status === 'active' || (config.status === 'trial' && !trialOver)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(config.joinCode)
+      addToast('Código copiado!', 'success')
+    } catch {
+      addToast('Não foi possível copiar. Selecione o código e copie manualmente.', 'error')
+    }
+  }
+
+  async function regenerate() {
+    setBusy(true)
+    try {
+      const { data } = await platformApi.post('/salon/join-code/regenerate', {}, { headers: { 'x-salon-id': salonId } })
+      onChange(data.joinCode)
+      setConfirming(false)
+      addToast('Novo código gerado. O anterior deixou de valer.', 'success')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao gerar novo código', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const btn = { padding: '8px 14px', fontSize: 13, fontWeight: 600, fontFamily: 'Inter, sans-serif', borderRadius: 8, cursor: 'pointer', border: '1px solid rgb(var(--line))', background: 'rgb(var(--surface))', color: 'rgb(var(--ink-2))' }
+
+  return (
+    <Section title="Código de acesso" description="Passe este código para seus clientes e sua equipe. Quem digitar em Meus salões entra direto no seu salão.">
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span aria-label="Código de acesso do salão" style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 700, letterSpacing: '.18em', color: active ? 'rgb(var(--ink))' : 'rgb(var(--ink-4))' }}>
+            {config.joinCode ?? '—'}
+          </span>
+          <button type="button" style={btn} onClick={copy} disabled={!config.joinCode}>Copiar</button>
+          {!confirming && <button type="button" style={btn} onClick={() => setConfirming(true)}>Gerar novo código</button>}
+        </div>
+        {!active && (
+          <p style={{ fontSize: 12, color: 'rgb(var(--danger))', marginTop: 8 }}>
+            O código só funciona com o salão ativo ou em período de teste. Enquanto o plano não estiver em dia, ninguém consegue entrar com ele.
+          </p>
+        )}
+        {confirming && (
+          <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: 'rgb(var(--surface-2))', border: '1px solid rgb(var(--line))' }}>
+            <p style={{ fontSize: 13, color: 'rgb(var(--ink-2))', margin: '0 0 10px', lineHeight: 1.55 }}>
+              O código atual deixa de funcionar. Quem já está no salão continua vinculado, só não consegue mais usar o código antigo para entrar.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" style={btn} onClick={() => setConfirming(false)} disabled={busy}>Cancelar</button>
+              <button type="button" style={{ ...btn, background: 'rgb(var(--brand))', borderColor: 'rgb(var(--brand))', color: '#fff' }} onClick={regenerate} disabled={busy}>
+                {busy ? 'Gerando…' : 'Gerar novo código'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
   )
 }
 
@@ -386,11 +453,21 @@ export default function AdminConfiguracoes() {
             }}
           >
             {t.label}
+            {t.soon && (
+              <span style={{ marginLeft: 6, padding: '2px 7px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', background: 'rgb(var(--brand-soft))', color: 'rgb(var(--brand-soft-ink))' }}>
+                Em breve
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+        {/* ── Código de acesso ── */}
+        {tab === 'geral' && !loading && config && (
+          <JoinCodeSection config={config} salonId={salonId} onChange={joinCode => setConfig(c => ({ ...c, joinCode }))} />
+        )}
 
         {/* ── Informações básicas ── */}
         {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
@@ -510,10 +587,15 @@ export default function AdminConfiguracoes() {
 
         {/* ── Agendamento online ── */}
         {tab === 'agendamento' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
-          <Section title="Agendamento online" description="Como os clientes agendam sozinhos pela página do salão. Admin e profissionais continuam agendando livremente pela agenda.">
-            <SettingRow title="Permitir agendamento online" hint="Desligado, a página do salão continua no ar, mas sem o botão de agendar.">
+          <Section title="Agendamento online" description="Como os clientes agendam sozinhos pelo link de agendamento do salão. Admin e profissionais continuam agendando livremente pela agenda.">
+            <SettingRow title="Permitir agendamento online" hint="Desligado, o link de agendamento fica indisponível para os clientes.">
               <Switch checked={settings.bookingEnabled} onChange={v => setSetting('bookingEnabled', v)} />
             </SettingRow>
+            {settings.bookingEnabled && (
+                <SettingRow title="Mostrar preços" hint="Desligado, os serviços aparecem sem valor no agendamento online.">
+                  <Switch checked={settings.showPrices} onChange={v => setSetting('showPrices', v)} />
+                </SettingRow>
+            )}
             {settings.bookingEnabled && (
                 <SettingRow title="Confirmar automaticamente" hint="Ligado, o agendamento do cliente já entra confirmado. Desligado, entra como pendente até alguém do salão confirmar.">
                   <Switch checked={settings.bookingAutoConfirm} onChange={v => setSetting('bookingAutoConfirm', v)} />
@@ -565,54 +647,20 @@ export default function AdminConfiguracoes() {
           </Section>
         ))}
 
-        {/* ── Página pública ── */}
-        {tab === 'publica' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
-          <Section title="Página pública" description={<>O que os clientes veem em <span style={{ fontFamily: 'monospace' }}>/salao/{salon?.slug}</span> e no agendamento online.</>}>
-            <div>
-              <label style={labelStyle}>Instagram</label>
-              <input
-                className="cfg-input"
-                style={inputStyle}
-                value={settings.instagram}
-                onChange={e => setSetting('instagram', e.target.value)}
-                placeholder="@seusalao"
-              />
-            </div>
-            <SettingRow title="Mostrar preços" hint="Desligado, os serviços aparecem sem valor na página, no marketplace e no agendamento online.">
-              <Switch checked={settings.showPrices} onChange={v => setSetting('showPrices', v)} />
-            </SettingRow>
-            <SettingRow title="Mostrar equipe" hint="Lista na página os profissionais que atendem algum serviço.">
-              <Switch checked={settings.showTeam} onChange={v => setSetting('showTeam', v)} />
-            </SettingRow>
-            <div>
-              <label style={labelStyle}>Horário de funcionamento</label>
-              <p style={{ fontSize: 12, color: 'rgb(var(--ink-3))', margin: '0 0 10px' }}>
-                Só informativo na página do salão — os horários para agendar vêm do expediente de cada profissional. Sem nenhum dia ligado, a seção não aparece.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {hourRows.map((r, i) => {
-                  const update = (patch) => setHourRows(rows => rows.map((x, j) => j === i ? { ...x, ...patch } : x))
-                  const timeStyle = { ...inputStyle, width: 'auto', padding: '7px 10px', fontSize: 13 }
-                  return (
-                    <div key={r.weekday} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minHeight: 36 }}>
-                      <Switch checked={r.isOpen} onChange={v => update({ isOpen: v })} />
-                      <span style={{ width: 72, fontSize: 13.5, fontWeight: 600, color: r.isOpen ? 'rgb(var(--ink))' : 'rgb(var(--ink-4))' }}>{WEEKDAYS[r.weekday]}</span>
-                      {r.isOpen ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="time" className="cfg-input" style={timeStyle} value={r.open} onChange={e => update({ open: e.target.value })} />
-                          <span style={{ fontSize: 12, color: 'rgb(var(--ink-3))' }}>às</span>
-                          <input type="time" className="cfg-input" style={timeStyle} value={r.close} onChange={e => update({ close: e.target.value })} />
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 13, color: 'rgb(var(--ink-4))' }}>Fechado</span>
-                      )}
-                    </div>
-                  )
-                })}
+        {/* ── Página pública (desativada na versão beta) ── */}
+        {tab === 'publica' && (
+          <Section title="Página pública" description="Uma página com a cara do seu salão para os clientes conhecerem.">
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <span style={{ color: 'rgb(var(--brand))', marginTop: 1 }}><Icon name="lock" size={18} /></span>
+              <div>
+                <p style={{ fontSize: 13.5, fontWeight: 600, color: 'rgb(var(--ink))', margin: 0 }}>Em breve</p>
+                <p style={{ fontSize: 12.5, color: 'rgb(var(--ink-3))', marginTop: 4, lineHeight: 1.6 }}>
+                  Estamos preparando a página pública do salão, com Instagram, equipe e horário de funcionamento. Por enquanto, seus clientes agendam pelo link de agendamento online e entram no salão pelo código de acesso.
+                </p>
               </div>
             </div>
           </Section>
-        ))}
+        )}
 
         {/* ── WhatsApp do salão ── */}
         {tab === 'whatsapp' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>

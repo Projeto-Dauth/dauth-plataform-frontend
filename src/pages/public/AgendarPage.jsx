@@ -308,7 +308,6 @@ export default function AgendarPage() {
       <Icon name="cal" size={28} />
       <h2 className="font-display text-[22px] font-medium text-ink">Agendamento online indisponível</h2>
       <p className="text-sm text-ink-3 max-w-xs">Este salão não está recebendo agendamentos pela internet no momento. Entre em contato direto com o salão.</p>
-      <Link to={`/salao/${salonSlug}`} className="text-sm text-brand hover:underline mt-2">Ver página do salão</Link>
     </div>
   )
 
@@ -761,9 +760,9 @@ export default function AgendarPage() {
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Button variant="primary" onClick={() => {
                 const area = user?.role === 'Admin' ? 'admin' : user?.role === 'Profissional' ? 'profissional' : 'cliente'
-                navigate(salonSlug ? `/${salonSlug}/${area}` : '/marketplace')
+                navigate(salonSlug ? `/${salonSlug}/${area}` : '/meus-saloes')
               }}>Ver meus agendamentos</Button>
-              <Button variant="ghost" onClick={() => navigate('/marketplace')}>Voltar ao marketplace</Button>
+              <Button variant="ghost" onClick={() => navigate('/meus-saloes')}>Meus salões</Button>
             </div>
           </div>
         )}

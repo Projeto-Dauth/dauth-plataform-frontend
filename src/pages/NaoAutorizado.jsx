@@ -18,7 +18,7 @@ export default function NaoAutorizado() {
   function handleHome() {
     if (!isAuthenticated) return navigate('/login', { replace: true })
     const dest = role && salon?.slug ? ROLE_DEST[role]?.(salon.slug) : null
-    navigate(dest ?? (user?.platformRole === 'SalonOwner' ? '/meus-saloes' : '/marketplace'), { replace: true })
+    navigate(dest ?? '/meus-saloes', { replace: true })
   }
 
   return (

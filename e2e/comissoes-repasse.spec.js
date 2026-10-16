@@ -118,3 +118,22 @@ test('marcar como repassada direto na transação (PATCH) também vai para o his
   await expect(entry).toContainText('Débito')
   await expect(entry).toContainText('por Admin Demo')
 })
+
+// O período do filtro (dia/mês) vale no fuso do salão: o servidor roda em UTC, então um pagamento às
+// 23h30 de Brasília já é "o dia seguinte" em UTC. Antes, ele sumia do filtro do próprio dia.
+test('período do filtro vale no fuso do salão: pagamento às 23h30 (Brasília) entra naquele dia e naquele mês', async ({ page }) => {
+  const pro = await createProfessional(salon.id)
+  const a = await paidAttendance(page, salon, { professional: pro.id, day: testDay(63) })
+  // 15/03/2031 23:30 em Brasília = 16/03/2031 02:30 UTC
+  await prisma.transaction.update({ where: { id: a.tx.id }, data: { paymentDate: new Date('2031-03-16T02:30:00.000Z') } })
+
+  const ids = async (params) => {
+    const res = await page.request.get(`${E2E_API_URL}/api/transaction/all-commissions`, { headers: { 'x-salon-id': salon.id }, params: { professional_id: pro.id, ...params } })
+    expect(res.ok(), await res.text()).toBeTruthy()
+    return (await res.json()).data.map(r => r.uuid)
+  }
+  expect(await ids({ from: '2031-03-15', to: '2031-03-15' }), 'dia 15 (hora local)').toContain(a.tx.id)
+  expect(await ids({ from: '2031-03-16', to: '2031-03-16' }), 'dia 16 não tem esse pagamento').not.toContain(a.tx.id)
+  expect(await ids({ month: '2031-03' }), 'mês de março').toContain(a.tx.id)
+  expect(await ids({ month: '2031-04' }), 'abril não').not.toContain(a.tx.id)
+})

@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dauth | Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap">
+<!--
+  Design System do Dauth — documento vivo, arquivo único (abre direto no navegador).
+  Fontes da verdade no código (se mudar lá, atualize aqui):
+    tailwind.config.js · src/index.css · src/components/layout/SalonLayout.jsx (PALETTES)
+    src/components/ui/* · src/context/ToastContext.jsx
+-->
+<style>
+  /* ── Tokens (mesmos nomes do app; o seletor de paleta reescreve estes valores) ── */
+  :root {
+    --bg: 253 244 245; --surface: 255 255 255; --surface-2: 250 240 241; --surface-3: 244 228 230;
+    --ink: 42 30 24; --ink-2: 91 70 60; --ink-3: 141 123 111; --ink-4: 180 165 152;
+    --line: 236 213 216; --line-2: 243 228 230; --line-3: 223 196 200;
+    --brand: 139 74 43; --brand-dark: 114 57 31; --brand-soft: 241 227 214; --brand-soft-ink: 122 63 35;
+    /* cores fixas: não mudam com a paleta */
+    --gold: #c9a57b; --gold-soft: #f4e9d6;
+    --success: #4a6b3e; --success-soft: #e3ebd9;
+    --warning: #9a6b1f; --warning-soft: #f6ead1;
+    --danger: #8b3a32; --danger-soft: #f3dcd8;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body {
+    margin: 0; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;
+    color: rgb(var(--ink)); background: rgb(var(--bg)); -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: inherit; margin: 0; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: rgb(var(--ink-3)); font-weight: 500; }
+
+  /* ── Layout da página ── */
+  .shell { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+  nav.side {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 28px 20px;
+    background: rgb(var(--surface)); border-right: 1px solid rgb(var(--line));
+  }
+  nav.side .brand { font-size: 20px; font-weight: 600; margin-bottom: 2px; }
+  nav.side .sub { font-size: 12.5px; color: rgb(var(--ink-3)); margin-bottom: 22px; }
+  nav.side a {
+    display: block; padding: 7px 10px; margin: 1px 0; border-radius: 6px; font-size: 13px;
+    color: rgb(var(--ink-2)); text-decoration: none;
+  }
+  nav.side a:hover { background: rgb(var(--surface-2)); color: rgb(var(--ink)); }
+  .pal { margin-top: 24px; padding-top: 18px; border-top: 1px solid rgb(var(--line)); }
+  .pal-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .pal-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgb(var(--line)); cursor: pointer; padding: 0;
+  }
+  .pal-btn[aria-pressed="true"] { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; }
+  main { padding: 48px 56px 120px; max-width: 1060px; }
+  section.block { margin-bottom: 72px; }
+  section.block > h2 { font-size: 28px; font-weight: 600; margin: 6px 0 8px; }
+  section.block > .lead { color: rgb(var(--ink-2)); max-width: 680px; margin-bottom: 28px; font-size: 14px; }
+  h3.sub-h { font-size: 16px; font-weight: 600; margin: 32px 0 12px; }
+  .card { background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: 14px; padding: 24px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .note { font-size: 12.5px; color: rgb(var(--ink-3)); margin-top: 10px; }
+  .tag-code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: rgb(var(--surface-2)); border: 1px solid rgb(var(--line)); padding: 1px 6px; border-radius: 6px; color: rgb(var(--ink-2)); }
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-weight: 500; color: rgb(var(--ink-3)); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid rgb(var(--line)); }
+  table.t td { padding: 10px; border-bottom: 1px solid rgb(var(--line-2)); vertical-align: middle; }
+
+  /* ── Swatches ── */
+  .sw { border: 1px solid rgb(var(--line)); border-radius: 10px; overflow: hidden; background: rgb(var(--surface)); cursor: pointer; text-align: left; padding: 0; font: inherit; color: inherit; }
+  .sw:hover { border-color: rgb(var(--ink-3)); }
+  .sw .chip { height: 56px; }
+  .sw .meta { padding: 8px 10px; }
+  .sw .meta b { display: block; font-size: 13px; font-weight: 500; }
+  .sw .meta span { display: block; font-size: 11.5px; color: rgb(var(--ink-3)); font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .copied { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgb(var(--ink)); color: rgb(var(--surface)); padding: 8px 14px; border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 200; }
+  .copied.on { opacity: 1; }
+
+  /* ── Componentes (réplica fiel das classes Tailwind de src/components/ui) ── */
+  .btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 500; border: 1px solid; cursor: pointer; transition: all .15s; }
+  .btn.md { padding: 10px 16px; font-size: 14px; border-radius: 10px; }
+  .btn.sm { padding: 6px 10px; font-size: 12.5px; border-radius: 6px; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: rgb(var(--brand)); color: #fff; border-color: rgb(var(--brand)); }
+  .btn.primary:hover { background: rgb(var(--brand-dark)); }
+  .btn.ghost { background: transparent; color: rgb(var(--ink-2)); border-color: rgb(var(--line)); }
+  .btn.ghost:hover { background: rgb(var(--surface-2)); }
+  .btn.outline { background: rgb(var(--surface)); color: rgb(var(--ink)); border-color: rgb(var(--line)); }
+  .btn.outline:hover { border-color: rgb(var(--ink-3)); }
+  .btn.whatsapp { background: #25D366; color: #fff; border-color: #25D366; }
+  .btn.whatsapp:hover { background: #1DA851; }
+  .btn.is-off { opacity: .6; cursor: not-allowed; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .chipx { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; border: 1px solid transparent; }
+  .chipx .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chipx.default { background: rgb(var(--surface-2)); color: rgb(var(--ink-2)); border-color: rgb(var(--line)); }
+  .chipx.brand { background: rgb(var(--brand-soft)); color: rgb(var(--brand-soft-ink)); }
+  .chipx.success { background: var(--success-soft); color: var(--success); }
+  .chipx.warning { background: var(--warning-soft); color: var(--warning); }
+  .chipx.danger { background: var(--danger-soft); color: var(--danger); }
+  .chipx.ghost { background: transparent; color: rgb(var(--ink-2)); border-color: rgb(var(--line)); }
+  .chipx.gold { background: #faecd6; color: #7a5c2e; border-color: rgb(201 165 123 / .5); }
+  .chipx.blue { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; max-width: 320px; }
+  .field label { font-size: 11px; color: rgb(var(--ink-3)); font-weight: 500; }
+  .field input {
+    height: 42px; padding: 0 14px; border-radius: 10px; border: 1px solid rgb(var(--line)); background: rgb(var(--surface));
+    color: rgb(var(--ink-2)); font: inherit; font-size: 14px;
+  }
+  .field input::placeholder { color: rgb(var(--ink-4)); }
+  .field input:focus { outline: none; border-color: rgb(var(--brand)); box-shadow: 0 0 0 2px rgb(var(--brand) / .12); }
+  .field.err input { border-color: var(--danger); }
+  .field .em { font-size: 11px; color: var(--danger); }
+
+  .modal-demo { position: relative; padding: 36px; border-radius: 14px; background: rgb(var(--ink) / .4); display: flex; justify-content: center; }
+  .modal-box { width: 100%; max-width: 384px; background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: 20px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04); }
+  .modal-box h4 { font-size: 16px; font-weight: 500; }
+  .modal-box p { font-size: 13.5px; color: rgb(var(--ink-2)); margin: 12px 0 20px; line-height: 1.6; }
+
+  .toast { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 14px; border: 1px solid; width: 320px; max-width: 100%; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04); }
+  .toast.success { background: var(--success-soft); color: var(--success); border-color: rgb(74 107 62 / .2); }
+  .toast.error { background: var(--danger-soft); color: var(--danger); border-color: rgb(139 58 50 / .2); }
+  .toast.warning { background: var(--warning-soft); color: var(--warning); border-color: rgb(154 107 31 / .2); }
+
+  .empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 0; }
+  .empty .ic { width: 48px; height: 48px; border-radius: 20px; background: rgb(var(--surface-2)); border: 1px solid rgb(var(--line)); display: flex; align-items: center; justify-content: center; color: rgb(var(--ink-3)); margin-bottom: 16px; }
+  .empty b { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .empty span { font-size: 13px; color: rgb(var(--ink-3)); max-width: 280px; margin-bottom: 20px; }
+
+  .spinner { width: 36px; height: 36px; border: 3px solid rgb(var(--line-3)); border-top-color: rgb(var(--brand)); border-radius: 50%; animation: spin .8s linear infinite; }
+  .skel { background: rgb(var(--surface-2)); border-radius: 10px; animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+  @keyframes pulse { 50% { opacity: .5; } }
+
+  .av { border-radius: 50%; border: 1px solid rgb(var(--line)); display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; }
+  .ic-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border: 1px solid rgb(var(--line)); border-radius: 10px; background: rgb(var(--surface)); font-size: 11.5px; color: rgb(var(--ink-3)); cursor: pointer; font-family: inherit; }
+  .ic-cell:hover { border-color: rgb(var(--ink-3)); color: rgb(var(--ink)); }
+  .ic-cell svg { color: rgb(var(--ink-2)); }
+
+  .anim-demo { width: 120px; height: 56px; border-radius: 10px; background: rgb(var(--brand-soft)); color: rgb(var(--brand-soft-ink)); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 500; }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes scale-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+
+  .rule { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .rule > div { border-radius: 14px; padding: 16px 18px; font-size: 13px; border: 1px solid; }
+  .rule .ok { background: var(--success-soft); border-color: rgb(74 107 62 / .25); }
+  .rule .no { background: var(--danger-soft); border-color: rgb(139 58 50 / .25); }
+  .rule b { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .rule .ok b { color: var(--success); } .rule .no b { color: var(--danger); }
+  .rule ul { margin: 0; padding-left: 18px; } .rule li { margin: 3px 0; }
+  .check li { margin: 6px 0; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.side { position: static; height: auto; }
+    main { padding: 28px 20px 80px; }
+    .g3, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g2, .rule { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="side" aria-label="Seções">
+  <div class="brand">Dauth</div>
+  <div class="sub">Design System</div>
+  <a href="#principios">Princípios</a>
+  <a href="#cores">Cores e tokens</a>
+  <a href="#paletas">Paletas</a>
+  <a href="#status">Status do sistema</a>
+  <a href="#tipografia">Tipografia</a>
+  <a href="#forma">Raio, sombra e movimento</a>
+  <a href="#botoes">Botões</a>
+  <a href="#chips">Chips</a>
+  <a href="#cards">Cards e painéis</a>
+  <a href="#formularios">Formulários</a>
+  <a href="#listas">Seleção e listas</a>
+  <a href="#feedback">Feedback e estados</a>
+  <a href="#avatar">Avatar</a>
+  <a href="#icones">Ícones</a>
+  <a href="#regras">Regras</a>
+  <a href="#checklist">Checklist de PR</a>
+  <div class="pal">
+    <div class="eyebrow">Testar paleta</div>
+    <div class="pal-row" id="palRow"></div>
+    <p class="note">Tudo nesta página usa os mesmos tokens do app. Troque a paleta e veja como cada peça responde.</p>
+  </div>
+</nav>
+
+<main>
+
+<header style="margin-bottom:56px">
+  <div class="eyebrow">Plataforma Dauth · Frontend</div>
+  <h1 style="font-size:40px;font-weight:600;margin:8px 0 12px">Design System</h1>
+  <p style="color:rgb(var(--ink-2));max-width:660px;font-size:15px">
+    O guia de como a interface do Dauth é construída: cores, tipografia, componentes e as regras que mantêm tudo consistente.
+    A estética é <b>"Atelier Terracotta"</b>: fundo creme, destaque terracota, inputs limpos e bordas finas. Cada salão escolhe uma das 4 paletas, por isso nenhum componente pode ter cor fixa.
+  </p>
+</header>
+
+<!-- ───────────── PRINCÍPIOS ───────────── -->
+<section class="block" id="principios">
+  <div class="eyebrow">01</div>
+  <h2>Princípios</h2>
+  <p class="lead">Quatro ideias que resolvem a maioria das dúvidas de design.</p>
+  <div class="grid g2">
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Tema primeiro</h3><p>Toda cor vem de um token CSS (<span class="tag-code">bg-brand</span>, <span class="tag-code">text-ink-2</span>). Se você digitou um hexadecimal dentro de <span class="tag-code">/:salonSlug/*</span>, algo está errado.</p></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Minimalismo</h3><p>Limpo e padronizado. Bordas de 1px, muito espaço, sem decoração extra. Se duas telas fazem a mesma coisa, elas têm a mesma cara.</p></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Reuse, não copie</h3><p>Antes de criar um componente, olhe <span class="tag-code">src/components/ui</span>. Componente repetido em duas telas vira um compartilhado.</p></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Estado sempre visível</h3><p>Carregando, vazio, erro e sucesso têm tela. Botão assíncrono mostra <span class="tag-code">loading</span>. Listas usam skeleton, não spinner solto.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── CORES ───────────── -->
+<section class="block" id="cores">
+  <div class="eyebrow">02</div>
+  <h2>Cores e tokens</h2>
+  <p class="lead">Clique em um swatch para copiar a classe Tailwind. Os valores abaixo são os da paleta ativa.</p>
+
+  <h3 class="sub-h">Superfícies e fundo</h3>
+  <div class="grid g4" id="swSurf"></div>
+  <h3 class="sub-h">Texto (ink)</h3>
+  <div class="grid g4" id="swInk"></div>
+  <h3 class="sub-h">Bordas (line)</h3>
+  <div class="grid g4" id="swLine"></div>
+  <h3 class="sub-h">Marca (brand)</h3>
+  <div class="grid g4" id="swBrand"></div>
+
+  <h3 class="sub-h">Cores fixas (não mudam com a paleta)</h3>
+  <div class="grid g4" id="swFixed"></div>
+  <p class="note">São cores com significado próprio (sucesso, perigo, WhatsApp). Use sempre o par <span class="tag-code">cor</span> + <span class="tag-code">cor-soft</span> para fundo e texto.</p>
+
+  <h3 class="sub-h">Como usar</h3>
+  <table class="t">
+    <tr><th>Quero…</th><th>Use</th></tr>
+    <tr><td>Fundo da página</td><td><span class="tag-code">bg-bg</span></td></tr>
+    <tr><td>Card, modal, dropdown</td><td><span class="tag-code">bg-surface border border-line</span></td></tr>
+    <tr><td>Linha, campo, hover de item</td><td><span class="tag-code">bg-surface-2</span> / <span class="tag-code">hover:bg-surface-3</span></td></tr>
+    <tr><td>Título e texto principal</td><td><span class="tag-code">text-ink</span></td></tr>
+    <tr><td>Texto secundário, label, placeholder, desabilitado</td><td><span class="tag-code">text-ink-2</span> · <span class="tag-code">text-ink-3</span> · <span class="tag-code">placeholder:text-ink-4</span></td></tr>
+    <tr><td>Ação principal</td><td><span class="tag-code">bg-brand</span> com <span class="tag-code">hover:bg-brand-dark</span></td></tr>
+    <tr><td>Destaque suave</td><td><span class="tag-code">bg-brand-soft text-brand-soft-ink</span></td></tr>
+    <tr><td>Cor em estilo inline</td><td><span class="tag-code">rgb(var(--ink))</span> · com opacidade <span class="tag-code">rgb(var(--ink) / 0.5)</span></td></tr>
+  </table>
+</section>
+
+<!-- ───────────── PALETAS ───────────── -->
+<section class="block" id="paletas">
+  <div class="eyebrow">03</div>
+  <h2>Paletas</h2>
+  <p class="lead">O salão escolhe a paleta em Configurações → Geral. O <span class="tag-code">SalonLayout</span> aplica os 15 tokens na hora. Midnight é o modo escuro de verdade.</p>
+  <div class="grid g2" id="palCards"></div>
+</section>
+
+<!-- ───────────── STATUS ───────────── -->
+<section class="block" id="status">
+  <div class="eyebrow">04</div>
+  <h2>Status do sistema</h2>
+  <p class="lead">Cada status tem uma cor fixa em todo o produto. O <span class="tag-code">Chip</span> resolve isso pela prop <span class="tag-code">status</span>.</p>
+  <div class="card">
+    <table class="t">
+      <tr><th>Status</th><th>Aparência</th><th>Variante</th></tr>
+      <tr><td>pendente</td><td><span class="chipx blue"><span class="dot"></span>pendente</span></td><td>blue</td></tr>
+      <tr><td>confirmado</td><td><span class="chipx success"><span class="dot"></span>confirmado</span></td><td>success</td></tr>
+      <tr><td>concluido</td><td><span class="chipx gold"><span class="dot"></span>concluido</span></td><td>gold</td></tr>
+      <tr><td>cancelado</td><td><span class="chipx danger"><span class="dot"></span>cancelado</span></td><td>danger</td></tr>
+      <tr><td>Em aberto</td><td><span class="chipx warning"><span class="dot"></span>Em aberto</span></td><td>warning</td></tr>
+      <tr><td>Paga</td><td><span class="chipx success"><span class="dot"></span>Paga</span></td><td>success</td></tr>
+      <tr><td>Expirada</td><td><span class="chipx default"><span class="dot"></span>Expirada</span></td><td>default</td></tr>
+    </table>
+    <p class="note"><b>Nunca</b> use <span class="tag-code">bg-warning-soft text-warning</span> para <i>pendente</i>: o padrão do sistema é azul. Em código, use <span class="tag-code">&lt;Chip status="pendente" /&gt;</span> em vez de montar as classes.</p>
+  </div>
+</section>
+
+<!-- ───────────── TIPOGRAFIA ───────────── -->
+<section class="block" id="tipografia">
+  <div class="eyebrow">05</div>
+  <h2>Tipografia</h2>
+  <p class="lead">Uma fonte só: <b>Inter</b>, em tudo (display, texto e mono). Para trocar, mude <span class="tag-code">FONT_FAMILY</span> no <span class="tag-code">tailwind.config.js</span> e o link do Google Fonts no <span class="tag-code">index.html</span>.</p>
+  <div class="card">
+    <table class="t">
+      <tr><th>Classe</th><th>Tamanho</th><th>Amostra</th></tr>
+      <tr><td><span class="tag-code">text-3xl</span></td><td>40px</td><td style="font-size:40px;font-weight:600;line-height:1.1">Agenda do dia</td></tr>
+      <tr><td><span class="tag-code">text-2xl</span></td><td>28px</td><td style="font-size:28px;font-weight:600">Agenda do dia</td></tr>
+      <tr><td><span class="tag-code">text-xl</span></td><td>20px</td><td style="font-size:20px;font-weight:600">Agenda do dia</td></tr>
+      <tr><td><span class="tag-code">text-lg</span></td><td>16px</td><td style="font-size:16px;font-weight:500">Agenda do dia</td></tr>
+      <tr><td><span class="tag-code">text-md</span></td><td>14px</td><td style="font-size:14px">Texto padrão de interface e botões</td></tr>
+      <tr><td><span class="tag-code">text-sm</span></td><td>12.5px</td><td style="font-size:12.5px">Texto de apoio, botões pequenos</td></tr>
+      <tr><td><span class="tag-code">text-xs</span></td><td>11px</td><td style="font-size:11px">Labels de campo, chips</td></tr>
+    </table>
+  </div>
+  <h3 class="sub-h">Eyebrow</h3>
+  <div class="card">
+    <div class="eyebrow">Marketplace</div>
+    <p class="note">Classe utilitária <span class="tag-code">.eyebrow</span>: 11px, caixa alta, <span class="tag-code">tracking-widest</span>, cor <span class="tag-code">ink-3</span>. Rótulo curto acima de títulos de página.</p>
+  </div>
+  <h3 class="sub-h">Pesos</h3>
+  <div class="card row" style="gap:28px">
+    <span style="font-weight:400">Regular 400 · corpo</span>
+    <span style="font-weight:500">Medium 500 · botões, labels, títulos de card</span>
+    <span style="font-weight:600">Semibold 600 · títulos</span>
+  </div>
+</section>
+
+<!-- ───────────── FORMA ───────────── -->
+<section class="block" id="forma">
+  <div class="eyebrow">06</div>
+  <h2>Raio, sombra e movimento</h2>
+  <h3 class="sub-h">Raio de borda</h3>
+  <div class="row" id="radii"></div>
+  <p class="note">Botão <span class="tag-code">md</span> usa <span class="tag-code">rounded-md</span>; <span class="tag-code">sm</span> usa <span class="tag-code">rounded-sm</span>. Cards de página usam <span class="tag-code">rounded-xl</span> (tabelas em <span class="tag-code">rounded-lg</span>, cartões grandes em <span class="tag-code">rounded-2xl</span>). Chips e avatares são pílula/círculo.</p>
+
+  <h3 class="sub-h">Sombra</h3>
+  <div class="row" style="gap:24px">
+    <div class="card" style="box-shadow:0 1px 2px rgba(0,0,0,.04);width:150px">shadow-xs</div>
+    <div class="card" style="box-shadow:0 2px 6px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);width:150px">shadow-sm</div>
+    <div class="card" style="box-shadow:0 8px 24px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04);width:150px">shadow-md</div>
+  </div>
+  <p class="note">Sombra só para o que flutua (modal, toast, dropdown). Cards de página usam borda, não sombra.</p>
+
+  <h3 class="sub-h">Animações de entrada</h3>
+  <div class="row" style="gap:20px">
+    <div><div class="anim-demo" id="a1">animate-fade-in</div><p class="note">0.24s · sobe 10px</p></div>
+    <div><div class="anim-demo" id="a2">animate-fade-up</div><p class="note">0.32s · sobe 16px</p></div>
+    <div><div class="anim-demo" id="a3">animate-scale-in</div><p class="note">0.20s · escala 0.97 → 1</p></div>
+    <button class="btn ghost sm" id="replay">Repetir</button>
+  </div>
+  <p class="note">Use nas telas e painéis que aparecem. Clique em ativos e botões usam <span class="tag-code">active:scale-[0.97]</span> com <span class="tag-code">transition-all duration-150</span>.</p>
+
+  <h3 class="sub-h">Texturas</h3>
+  <p style="color:rgb(var(--ink-2))"><span class="tag-code">.grain</span> (granulado para heroes), <span class="tag-code">.bg-off-hours</span> (listras para horários fora do expediente na agenda), <span class="tag-code">.scrollbar-hidden</span>.</p>
+</section>
+
+<!-- ───────────── BOTÕES ───────────── -->
+<section class="block" id="botoes">
+  <div class="eyebrow">07</div>
+  <h2>Botões</h2>
+  <p class="lead"><span class="tag-code">components/ui/Button.jsx</span>. Um botão <b>primário</b> por tela, o resto em ghost ou outline.</p>
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px">Variantes (md)</div>
+    <div class="row">
+      <button class="btn md primary">Primário</button>
+      <button class="btn md outline">Outline</button>
+      <button class="btn md ghost">Ghost</button>
+      <button class="btn md whatsapp">WhatsApp</button>
+    </div>
+    <div class="eyebrow" style="margin:22px 0 12px">Tamanho sm</div>
+    <div class="row">
+      <button class="btn sm primary">Salvar</button>
+      <button class="btn sm outline">Filtrar</button>
+      <button class="btn sm ghost">Cancelar</button>
+    </div>
+    <div class="eyebrow" style="margin:22px 0 12px">Estados</div>
+    <div class="row">
+      <button class="btn md primary"><span class="spin"></span>Salvando</button>
+      <button class="btn md primary is-off" disabled>Desabilitado</button>
+      <button class="btn md ghost"><svg data-ic="plus" width="14" height="14"></svg>Com ícone</button>
+    </div>
+  </div>
+  <div class="rule" style="margin-top:16px">
+    <div class="ok"><b>Faça</b><ul><li>Use <span class="tag-code">loading=</span> em qualquer ação que chama a API</li><li><span class="tag-code">disabled=</span> só para bloqueios que não são assíncronos</li><li>Hover do primário é <span class="tag-code">bg-brand-dark</span></li></ul></div>
+    <div class="no"><b>Evite</b><ul><li>Hover com hexadecimal (<span class="tag-code">hover:bg-[#72391f]</span>)</li><li>Dois botões primários lado a lado</li><li>Botão sem texto e sem <span class="tag-code">aria-label</span></li></ul></div>
+  </div>
+  <p class="note">Não existe variante <i>danger</i> no Button. Para confirmar exclusão, use <span class="tag-code">className="!bg-danger …"</span> ou <span class="tag-code">confirmVariant</span> no Modal.</p>
+</section>
+
+<!-- ───────────── CHIPS ───────────── -->
+<section class="block" id="chips">
+  <div class="eyebrow">08</div>
+  <h2>Chips</h2>
+  <p class="lead"><span class="tag-code">components/ui/Chip.jsx</span>. Etiqueta pequena de status ou categoria.</p>
+  <div class="card row">
+    <span class="chipx default">default</span>
+    <span class="chipx brand">brand</span>
+    <span class="chipx success">success</span>
+    <span class="chipx warning">warning</span>
+    <span class="chipx danger">danger</span>
+    <span class="chipx ghost">ghost</span>
+    <span class="chipx gold">gold</span>
+    <span class="chipx blue">blue</span>
+  </div>
+</section>
+
+<!-- ───────────── FORMULÁRIOS ───────────── -->
+<!-- ───────────── CARDS E PAINÉIS ───────────── -->
+<section class="block" id="cards">
+  <div class="eyebrow">09</div>
+  <h2>Cards e painéis</h2>
+  <p class="lead">O bloco básico das telas é uma superfície com borda fina. Sombra fica só para o que flutua.</p>
+  <div class="grid g2">
+    <div class="card" style="border-radius:20px">
+      <div class="eyebrow" style="margin-bottom:8px">Card padrão</div>
+      <b style="font-size:16px;font-weight:500">Perfil do cliente</b>
+      <p class="note">Classes: <span class="tag-code">bg-surface border border-line rounded-xl p-5</span></p>
+    </div>
+    <div class="card" style="border-style:dashed;border-radius:14px;display:flex;align-items:center;justify-content:center;color:rgb(var(--ink-3));min-height:110px">
+      Caixa vazia tracejada
+    </div>
+  </div>
+  <p class="note">Vazio tracejado: <span class="tag-code">bg-surface border border-line border-dashed rounded-lg text-ink-3</span>. Tabelas ficam dentro de um card <span class="tag-code">rounded-lg overflow-hidden</span>.</p>
+
+  <h3 class="sub-h">Painel lateral (drawer)</h3>
+  <p class="lead" style="margin-bottom:16px">Usado para criar e ver detalhes sem sair da tela (novo pedido, ficha do cliente, itens do pacote). Modal é para confirmar algo curto; drawer é para formulário e detalhe.</p>
+  <div style="position:relative;height:430px;border-radius:14px;background:rgb(var(--ink) / .3);overflow:hidden">
+    <div style="position:absolute;top:0;right:0;bottom:0;width:400px;max-width:100%;background:rgb(var(--surface));border-left:1px solid rgb(var(--line));padding:26px;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <span style="font-size:20px;font-weight:500;letter-spacing:-.01em">Novo pedido</span>
+        <svg data-ic="x" width="18" height="18" style="color:rgb(var(--ink-3))"></svg>
+      </div>
+      <div class="field" style="max-width:none;margin-bottom:14px"><label>Produto</label><input placeholder="Selecione..." aria-label="Produto"></div>
+      <div class="field" style="max-width:none"><label>Quantidade</label><input value="1" aria-label="Quantidade"></div>
+      <div style="display:flex;gap:8px;margin-top:auto;padding-top:16px">
+        <button class="btn md ghost" style="flex:1;justify-content:center">Cancelar</button>
+        <button class="btn md primary" style="flex:1;justify-content:center">Criar pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub-h">Anatomia</h3>
+  <div class="card">
+    <table class="t">
+      <tr><th>Parte</th><th>Padrão</th></tr>
+      <tr><td>Camada externa</td><td><span class="tag-code">fixed inset-0 z-40 flex</span></td></tr>
+      <tr><td>Fundo (clicar fecha)</td><td><span class="tag-code">flex-1 bg-ink/30</span></td></tr>
+      <tr><td>Painel</td><td><span class="tag-code">w-full md:w-[400px] bg-surface border-l border-line h-full overflow-y-auto p-5 md:p-7 flex flex-col</span></td></tr>
+      <tr><td>Largura</td><td>400px para detalhes, 420px para formulários. Em tela pequena ocupa tudo</td></tr>
+      <tr><td>Título</td><td><span class="tag-code">font-display font-medium text-[20px] tracking-tight</span> com botão X (<span class="tag-code">text-ink-3 hover:text-ink</span>, ícone 18)</td></tr>
+      <tr><td>Formulário</td><td><span class="tag-code">flex flex-col gap-4 flex-1</span></td></tr>
+      <tr><td>Rodapé de ações</td><td><span class="tag-code">flex gap-2 mt-auto pt-4</span>: Cancelar (ghost) e ação principal (com <span class="tag-code">loading</span>), os dois <span class="tag-code">flex-1 justify-center</span></td></tr>
+      <tr><td>Drawer de detalhes</td><td>Linhas rótulo/valor no corpo; ações no rodapé separadas por <span class="tag-code">border-t border-line</span>; ação destrutiva em <span class="tag-code">text-danger</span></td></tr>
+    </table>
+  </div>
+  <div class="rule" style="margin-top:16px">
+    <div class="ok"><b>Faça</b><ul><li>Fechar por X, clique no fundo e Cancelar</li><li>Ação principal sempre no rodapé, à direita</li><li>Confirmação de exclusão em Modal por cima do drawer</li></ul></div>
+    <div class="no"><b>Evite</b><ul><li>Drawer dentro de drawer</li><li>Rodapé de ações rolando junto com o conteúdo</li><li>Largura fixa sem versão para celular</li></ul></div>
+  </div>
+
+  <h3 class="sub-h">Variante: notificações</h3>
+  <div style="position:relative;height:190px;border-radius:14px;background:rgb(var(--ink) / .2);overflow:hidden">
+    <div style="position:absolute;top:0;right:0;bottom:0;width:300px;background:rgb(var(--surface));border-left:1px solid rgb(var(--line));box-shadow:0 8px 24px rgba(0,0,0,.08)">
+      <div style="padding:14px 18px;border-bottom:1px solid rgb(var(--line));display:flex;gap:8px;align-items:center">
+        <span style="font-weight:500;font-size:15px">Notificações</span>
+        <span style="font-size:10.5px;letter-spacing:.1em;background:rgb(var(--brand));color:#fff;border-radius:999px;padding:2px 8px">3</span>
+      </div>
+      <p style="padding:14px 18px" class="note">Novo agendamento · há 5min</p>
+    </div>
+  </div>
+  <p class="note">Fica no layout principal (<span class="tag-code">NotificationDrawer</span>), este sim é um componente único. Tem <span class="tag-code">380px</span> no desktop e, no celular, vira "bottom sheet" com alça e <span class="tag-code">rounded-t-2xl</span>. Fecha com Esc.</p>
+  <div class="card" style="margin-top:14px;border-color:var(--warning);background:var(--warning-soft)">
+    <b style="color:var(--warning)">Pendência para o time</b>
+    <p style="margin-top:4px;font-size:13px">O padrão de drawer acima é copiado em cada tela (Pedidos de Produtos, Agenda, Clientes, Combos). Vale extrair um componente <span class="tag-code">Drawer</span> compartilhado para ele não divergir.</p>
+  </div>
+</section>
+
+<section class="block" id="formularios">
+  <div class="eyebrow">09</div>
+  <h2>Formulários</h2>
+  <p class="lead"><span class="tag-code">components/ui/Input.jsx</span>. Campo de 42px, label pequena em cima, erro embaixo.</p>
+  <div class="card row" style="align-items:flex-start;gap:32px">
+    <div class="field"><label for="i1">Nome do cliente</label><input id="i1" placeholder="Maria Silva"></div>
+    <div class="field err"><label for="i2">Telefone</label><input id="i2" value="(11) 9"><span class="em">Telefone incompleto</span></div>
+  </div>
+  <div class="rule" style="margin-top:16px">
+    <div class="ok"><b>Faça</b><ul><li>Todo campo tem <span class="tag-code">&lt;label&gt;</span> ou <span class="tag-code">aria-label</span> (os testes E2E acham pelo nome que o usuário vê)</li><li>Formate telefone com <span class="tag-code">lib/phone.js</span></li></ul></div>
+    <div class="no"><b>Evite</b><ul><li>Placeholder no lugar de label</li><li>Máscara de telefone com <span class="tag-code">onChange</span> fora do <span class="tag-code">register</span></li></ul></div>
+  </div>
+</section>
+
+<!-- ───────────── SELEÇÃO E LISTAS ───────────── -->
+<section class="block" id="listas">
+  <div class="eyebrow">11</div>
+  <h2>Seleção e listas</h2>
+  <p class="lead">Campos com busca, paginação e a máscara de valores financeiros.</p>
+
+  <h3 class="sub-h">SearchableSelect</h3>
+  <div class="card" style="max-width:380px">
+    <div class="field" style="max-width:none"><label>Cliente</label><input value="Mar" aria-label="Buscar cliente"></div>
+    <div style="margin-top:6px;border:1px solid rgb(var(--line));border-radius:10px;background:rgb(var(--surface));box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden">
+      <div style="padding:10px 14px;background:rgb(var(--surface-2))">Marina Alves</div>
+      <div style="padding:10px 14px">Marcos Pereira</div>
+      <div style="padding:10px 14px">Maria Silva</div>
+    </div>
+  </div>
+  <p class="note">Busca local (lista pronta) ou remota com espera de 300ms, para listas grandes como clientes. Use no lugar de <span class="tag-code">&lt;select&gt;</span> quando a lista passa de poucos itens.</p>
+
+  <h3 class="sub-h">Paginação e "Carregar mais"</h3>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <button class="btn ghost" style="padding:6px 10px;font-size:12.5px;border-radius:14px"><svg data-ic="arrowLeft" width="12" height="12"></svg>Anterior</button>
+      <span style="font-size:11.5px;color:rgb(var(--ink-3))">Página 2 de 5</span>
+      <button class="btn ghost" style="padding:6px 10px;font-size:12.5px;border-radius:14px">Próxima<svg data-ic="arrowRight" width="12" height="12"></svg></button>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:20px"><button class="btn sm outline">Carregar mais</button></div>
+  </div>
+  <p class="note">Paginação numerada (<span class="tag-code">PaginationControls</span>) para listas cliente-lado. "Carregar mais" (<span class="tag-code">LoadMoreButton</span>) para listas que buscam no servidor aos poucos. Aparece só se houver mais de uma página.</p>
+
+  <h3 class="sub-h">Valores financeiros ocultos</h3>
+  <div class="card row">
+    <button class="btn sm outline" id="privTog"><svg data-ic="eyeOff" width="14" height="14"></svg>Ocultar valores</button>
+    <span style="font-size:20px;font-weight:600" id="privVal">R$ 1.280,00</span>
+  </div>
+  <p class="note">Todo valor monetário vai dentro de <span class="tag-code">MoneyValue</span>. Com o modo ligado (Configurações → Geral) ele vira <span class="tag-code">••••••</span> com <span class="tag-code">privacy-mask</span>, útil para mostrar o sistema sem expor números.</p>
+</section>
+
+<!-- ───────────── FEEDBACK ───────────── -->
+<section class="block" id="feedback">
+  <div class="eyebrow">10</div>
+  <h2>Feedback e estados</h2>
+
+  <h3 class="sub-h">Modal de confirmação</h3>
+  <p class="note" style="margin:0 0 12px"><span class="tag-code">components/ui/Modal.jsx</span>: fundo <span class="tag-code">bg-ink/40</span> com blur, caixa de 384px, ação confirmar à direita.</p>
+  <div class="modal-demo">
+    <div class="modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start"><h4>Excluir comanda?</h4><svg data-ic="x" width="16" height="16" style="color:rgb(var(--ink-3))"></svg></div>
+      <p>A comanda em aberto será removida. Essa ação não pode ser desfeita.</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn sm ghost">Cancelar</button><button class="btn sm primary" style="background:var(--danger);border-color:var(--danger)">Excluir</button></div>
+    </div>
+  </div>
+
+  <h3 class="sub-h">Toast</h3>
+  <p class="note" style="margin:0 0 12px"><span class="tag-code">useToast().addToast(mensagem, tipo)</span>: canto inferior direito, some em 4s. Tipos: <span class="tag-code">success</span> (padrão), <span class="tag-code">error</span>, <span class="tag-code">warning</span>.</p>
+  <div class="grid g3">
+    <div class="toast success"><svg data-ic="check" width="14" height="14" style="margin-top:2px;flex-shrink:0"></svg><span style="flex:1">Agendamento confirmado</span><svg data-ic="x" width="13" height="13" style="opacity:.6"></svg></div>
+    <div class="toast error"><svg data-ic="alertCircle" width="14" height="14" style="margin-top:2px;flex-shrink:0"></svg><span style="flex:1">Não foi possível salvar</span><svg data-ic="x" width="13" height="13" style="opacity:.6"></svg></div>
+    <div class="toast warning"><svg data-ic="alertCircle" width="14" height="14" style="margin-top:2px;flex-shrink:0"></svg><span style="flex:1">Comissão pendente</span><svg data-ic="x" width="13" height="13" style="opacity:.6"></svg></div>
+  </div>
+
+  <h3 class="sub-h">Estado vazio</h3>
+  <div class="card"><div class="empty">
+    <div class="ic"><svg data-ic="cal" width="22" height="22"></svg></div>
+    <b>Nenhum agendamento hoje</b>
+    <span>Quando alguém marcar um horário, ele aparece aqui.</span>
+    <button class="btn sm primary">Novo agendamento</button>
+  </div></div>
+
+  <h3 class="sub-h">Tour guiado (Shepherd)</h3>
+  <div class="card" style="max-width:320px;border-radius:12px;box-shadow:0 8px 32px rgb(var(--ink) / .12)">
+    <b style="font-size:15px;font-weight:500">Sua agenda</b>
+    <p style="font-size:13px;line-height:1.55;color:rgb(var(--ink-2));margin:8px 0 14px">Aqui você vê os horários de todas as profissionais.</p>
+    <div class="row" style="gap:8px"><span style="background:rgb(var(--brand));color:#fff;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500">Próximo</span><span style="color:rgb(var(--ink-3));font-size:13px;padding:8px 12px">Pular</span></div>
+  </div>
+  <p class="note">Os balões seguem o tema sozinhos porque o CSS do tour (em <span class="tag-code">index.css</span>) usa os tokens. Chaves dos tours ficam em <span class="tag-code">config/tours.js</span>.</p>
+
+  <h3 class="sub-h">Carregando</h3>
+  <div class="grid g2">
+    <div class="card"><div class="eyebrow" style="margin-bottom:14px">Skeleton (preferido em listas e cards)</div>
+      <div class="skel" style="height:28px;width:140px;margin-bottom:10px"></div>
+      <div class="skel" style="height:16px;width:96px;margin-bottom:18px;border-radius:6px"></div>
+      <div class="skel" style="height:56px"></div>
+    </div>
+    <div class="card"><div class="eyebrow" style="margin-bottom:14px">Spinner (ação curta ou página inteira)</div>
+      <div class="row"><div class="spinner" style="width:16px;height:16px;border-width:2px"></div><div class="spinner" style="width:24px;height:24px;border-width:2px"></div><div class="spinner"></div></div>
+    </div>
+  </div>
+  <p class="note">Skeleton: <span class="tag-code">bg-surface-2 rounded animate-pulse</span>. Spinner: <span class="tag-code">Spinner</span> (sm/md/lg) e <span class="tag-code">PageSpinner</span>.</p>
+</section>
+
+<!-- ───────────── AVATAR ───────────── -->
+<section class="block" id="avatar">
+  <div class="eyebrow">11</div>
+  <h2>Avatar</h2>
+  <p class="lead"><span class="tag-code">components/ui/Avatar.jsx</span>. Iniciais sobre gradiente. A cor vem de um hash do nome, então a mesma pessoa tem sempre a mesma cor. Aceita foto via <span class="tag-code">src</span>.</p>
+  <div class="card row" style="gap:20px" id="avatars"></div>
+  <p class="note">Tamanhos: sm 28 · md 36 · lg 56 · xl 72.</p>
+</section>
+
+<!-- ───────────── ÍCONES ───────────── -->
+<section class="block" id="icones">
+  <div class="eyebrow">12</div>
+  <h2>Ícones</h2>
+  <p class="lead">Um conjunto único de SVGs em <span class="tag-code">components/ui/Icons.jsx</span>: traço de 1.6px, <span class="tag-code">currentColor</span>, viewBox 24. Use sempre o componente, nunca emoji nem SVG solto.</p>
+  <div class="grid g4" id="iconGrid" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+  <p class="note">Precisa de um ícone novo? Adicione o path em <span class="tag-code">Icons.jsx</span> no mesmo estilo (traço, sem preenchimento). Clique em um ícone para copiar o nome.</p>
+</section>
+
+<!-- ───────────── REGRAS ───────────── -->
+<section class="block" id="regras">
+  <div class="eyebrow">13</div>
+  <h2>Regras</h2>
+  <p class="lead">Aprendidas com bugs reais do projeto.</p>
+  <div class="grid g2">
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Cores</h3>
+      <ul class="check" style="padding-left:18px;margin:0">
+        <li>Nada de <span class="tag-code">#hex</span>, <span class="tag-code">rgba()</span> fixo ou <span class="tag-code">#fff</span> em <span class="tag-code">/:salonSlug/*</span>.</li>
+        <li>Inline style: <span class="tag-code">rgb(var(--token))</span>.</li>
+        <li>Exceção: cores fixas de marca externa (WhatsApp) e status.</li>
+      </ul></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Datas e dinheiro</h3>
+      <ul class="check" style="padding-left:18px;margin:0">
+        <li>Use <span class="tag-code">lib/format.js</span> (<span class="tag-code">formatDate</span>, <span class="tag-code">formatCurrency</span>, <span class="tag-code">formatTime</span>…).</li>
+        <li>Nunca <span class="tag-code">new Date('AAAA-MM-DD')</span> para exibir: some um dia em fuso UTC-3.</li>
+        <li>Valores financeiros passam por <span class="tag-code">MoneyValue</span> (modo "ocultar valores").</li>
+      </ul></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Rotas e navegação</h3>
+      <ul class="check" style="padding-left:18px;margin:0">
+        <li>Todo <span class="tag-code">navigate()</span> e <span class="tag-code">Link</span> dentro do salão leva o slug: <span class="tag-code">`/${salonSlug}/…`</span>.</li>
+        <li>Paths em <span class="tag-code">navItems.js</span> não começam com <span class="tag-code">/</span>.</li>
+        <li>Rota nova precisa de <span class="tag-code">handle: { title }</span>.</li>
+      </ul></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Dados e componentes</h3>
+      <ul class="check" style="padding-left:18px;margin:0">
+        <li>Produto usa <span class="tag-code">api</span>; plataforma usa <span class="tag-code">platformApi</span>.</li>
+        <li>Sidebar do cliente é <span class="tag-code">ClienteSidebar</span>, único. Agenda e Caixa são compartilhados entre Admin e Profissional.</li>
+        <li>Dado que muda acesso (plano, status) nunca vem só do store persistido.</li>
+      </ul></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Acessibilidade e testes</h3>
+      <ul class="check" style="padding-left:18px;margin:0">
+        <li>Botão só com ícone leva <span class="tag-code">aria-label</span>.</li>
+        <li>Campo sem label visível leva <span class="tag-code">aria-label</span>. Os testes E2E procuram pelo que a pessoa vê.</li>
+        <li>Informação nunca só por cor: status também tem texto.</li>
+      </ul></div>
+    <div class="card"><h3 class="sub-h" style="margin-top:0">Texto da interface</h3>
+      <ul class="check" style="padding-left:18px;margin:0">
+        <li>Português do Brasil, direto, sem jargão técnico para o cliente final.</li>
+        <li>Erros dizem o que aconteceu e o que fazer.</li>
+        <li>O nome do produto é "Dauth".</li>
+      </ul></div>
+  </div>
+</section>
+
+<!-- ───────────── CHECKLIST ───────────── -->
+<section class="block" id="checklist">
+  <div class="eyebrow">14</div>
+  <h2>Checklist de PR</h2>
+  <p class="lead">Antes de abrir o pull request de qualquer tela ou componente.</p>
+  <div class="card">
+    <ul class="check" style="padding-left:20px;margin:0">
+      <li>Troquei a paleta (terracota, sage, ocean e midnight) e a tela continua legível?</li>
+      <li>Procurei por cores fixas (<span class="tag-code">#</span>, <span class="tag-code">rgb(</span> sem <span class="tag-code">var</span>)?</li>
+      <li>Reutilizei os componentes de <span class="tag-code">components/ui</span> em vez de copiar?</li>
+      <li>Botões assíncronos usam <span class="tag-code">loading</span>? Listas têm skeleton e estado vazio?</li>
+      <li>Datas, moedas e telefones usam os helpers de <span class="tag-code">lib/</span>?</li>
+      <li>Os links e <span class="tag-code">navigate()</span> levam o slug do salão?</li>
+      <li>Campos têm label; botões de ícone têm <span class="tag-code">aria-label</span>?</li>
+      <li>Rodei <span class="tag-code">npm run build</span> e, se mexi em fluxo, <span class="tag-code">npm run test:e2e</span>?</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+</div>
+<div class="copied" id="copied" role="status">Copiado</div>
+
+<script>
+/* Mesmos valores de SalonLayout.jsx → PALETTES. Se mudar lá, atualize aqui. */
+const PALETTES = {
+  terracota: { bg:'253 244 245', surface:'255 255 255', 'surface-2':'250 240 241', 'surface-3':'244 228 230', ink:'42 30 24', 'ink-2':'91 70 60', 'ink-3':'141 123 111', 'ink-4':'180 165 152', line:'236 213 216', 'line-2':'243 228 230', 'line-3':'223 196 200', brand:'139 74 43', 'brand-dark':'114 57 31', 'brand-soft':'241 227 214', 'brand-soft-ink':'122 63 35' },
+  sage:      { bg:'244 248 241', surface:'255 255 255', 'surface-2':'238 245 234', 'surface-3':'224 237 218', ink:'24 38 20', 'ink-2':'58 84 50', 'ink-3':'98 130 88', 'ink-4':'152 178 142', line:'208 228 200', 'line-2':'226 240 220', 'line-3':'192 218 182', brand:'74 107 62', 'brand-dark':'56 84 46', 'brand-soft':'224 237 218', 'brand-soft-ink':'58 84 50' },
+  ocean:     { bg:'241 246 252', surface:'255 255 255', 'surface-2':'234 242 250', 'surface-3':'218 232 246', ink:'18 32 52', 'ink-2':'48 72 106', 'ink-3':'88 118 154', 'ink-4':'144 170 198', line:'200 220 242', 'line-2':'220 234 248', 'line-3':'178 208 234', brand:'43 74 107', 'brand-dark':'30 56 86', 'brand-soft':'214 228 244', 'brand-soft-ink':'35 62 92' },
+  midnight:  { bg:'19 19 31', surface:'30 30 46', 'surface-2':'37 37 56', 'surface-3':'48 48 72', ink:'232 228 244', 'ink-2':'184 180 208', 'ink-3':'128 124 152', 'ink-4':'84 80 108', line:'48 48 72', 'line-2':'37 37 56', 'line-3':'60 60 88', brand:'155 143 201', 'brand-dark':'126 114 172', 'brand-soft':'48 44 72', 'brand-soft-ink':'200 194 230' },
+};
+const PAL_NAMES = { terracota: 'Terracota (padrão)', sage: 'Sage', ocean: 'Ocean', midnight: 'Midnight (escuro)' };
+
+/* Ícones: mesmos paths de src/components/ui/Icons.jsx */
+const ICONS = {
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  users:'<path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  scissors:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/>',
+  tag:'<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><path d="M7 7h.01"/>',
+  package:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01 20.73 6.96M12 22.08V12"/>',
+  receipt:'<path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2z"/><path d="M8 10h8M8 14h5"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  arrowLeft:'<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  arrowRight:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  repeat:'<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  filter:'<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  menu:'<path d="M3 12h18M3 6h18M3 18h18"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
+  cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  qr:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14h1v1h-1zM14 20h3v1h-3zM20 20h1v1h-1z"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:'<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22M10.73 10.73a3 3 0 0 0 4.24 4.24"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  chevronRight:'<path d="M9 18l6-6-6-6"/>',
+  alertCircle:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  archive:'<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+  arrowLeftRight:'<path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>',
+  helpCircle:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+};
+const svg = (name, size = 14) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${name === 'plus' || name === 'check' ? 2 : 1.6}" style="flex-shrink:0">${ICONS[name]}</svg>`;
+
+const $ = (s) => document.querySelector(s);
+const toast = $('#copied');
+function copy(text) {
+  const done = () => { toast.textContent = 'Copiado: ' + text; toast.classList.add('on'); setTimeout(() => toast.classList.remove('on'), 1400); };
+  (navigator.clipboard?.writeText(text) ?? Promise.reject()).then(done, done);
+}
+
+/* Paleta */
+let current = 'terracota';
+function applyPalette(id) {
+  current = id;
+  for (const [k, v] of Object.entries(PALETTES[id])) document.documentElement.style.setProperty('--' + k, v);
+  document.documentElement.setAttribute('data-palette', id);
+  document.querySelectorAll('.pal-btn').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id));
+  renderSwatches();
+}
+const palRow = $('#palRow');
+for (const id of Object.keys(PALETTES)) {
+  const p = PALETTES[id];
+  const b = document.createElement('button');
+  b.className = 'pal-btn'; b.dataset.id = id; b.title = PAL_NAMES[id]; b.setAttribute('aria-label', 'Paleta ' + PAL_NAMES[id]);
+  b.style.background = `linear-gradient(135deg, rgb(${p.brand}) 50%, rgb(${p.bg}) 50%)`;
+  b.addEventListener('click', () => applyPalette(id));
+  palRow.appendChild(b);
+}
+
+/* Swatches */
+const rgbHex = (triplet) => '#' + triplet.split(' ').map(n => (+n).toString(16).padStart(2, '0')).join('');
+function swatch(label, cls, varName, fixedHex) {
+  const val = fixedHex ?? rgbHex(PALETTES[current][varName]);
+  const bg = fixedHex ?? `rgb(var(--${varName}))`;
+  return `<button class="sw" data-copy="${cls}"><div class="chip" style="background:${bg};border-bottom:1px solid rgb(var(--line))"></div>
+    <div class="meta"><b>${label}</b><span>${cls}</span><span>${val}</span></div></button>`;
+}
+function renderSwatches() {
+  $('#swSurf').innerHTML = [['Fundo','bg-bg','bg'],['Surface','bg-surface','surface'],['Surface 2','bg-surface-2','surface-2'],['Surface 3','bg-surface-3','surface-3']].map(a => swatch(...a)).join('');
+  $('#swInk').innerHTML = [['Ink','text-ink','ink'],['Ink 2','text-ink-2','ink-2'],['Ink 3','text-ink-3','ink-3'],['Ink 4','text-ink-4','ink-4']].map(a => swatch(...a)).join('');
+  $('#swLine').innerHTML = [['Line','border-line','line'],['Line 2','border-line-2','line-2'],['Line 3','border-line-3','line-3']].map(a => swatch(...a)).join('');
+  $('#swBrand').innerHTML = [['Brand','bg-brand','brand'],['Brand dark','bg-brand-dark','brand-dark'],['Brand soft','bg-brand-soft','brand-soft'],['Brand soft ink','text-brand-soft-ink','brand-soft-ink']].map(a => swatch(...a)).join('') + swatch('Brand ink (fixo)', 'text-brand-ink', null, '#ffffff');
+  $('#swFixed').innerHTML = [
+    ['Gold','bg-gold',null,'#c9a57b'],['Gold soft','bg-gold-soft',null,'#f4e9d6'],
+    ['Success','text-success',null,'#4a6b3e'],['Success soft','bg-success-soft',null,'#e3ebd9'],
+    ['Warning','text-warning',null,'#9a6b1f'],['Warning soft','bg-warning-soft',null,'#f6ead1'],
+    ['Danger','text-danger',null,'#8b3a32'],['Danger soft','bg-danger-soft',null,'#f3dcd8'],
+  ].map(([l,c,v,h]) => swatch(l,c,v,h)).join('');
+  document.querySelectorAll('.sw').forEach(el => el.onclick = () => copy(el.dataset.copy));
+}
+
+/* Cards de paleta (comparação lado a lado, com valores RGB) */
+$('#palCards').innerHTML = Object.entries(PALETTES).map(([id, p]) => `
+  <div class="card" style="background:rgb(${p.surface});border-color:rgb(${p.line});color:rgb(${p.ink})">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <b style="font-size:15px">${PAL_NAMES[id]}</b>
+      <span style="font-size:11px;font-family:ui-monospace,monospace;color:rgb(${p['ink-3']})">data-palette="${id}"</span>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      ${['bg','surface-2','surface-3','line-3','brand','brand-dark','brand-soft','ink'].map(k => `<div title="${k}: ${p[k]}" style="flex:1;height:34px;border-radius:6px;background:rgb(${p[k]});border:1px solid rgb(${p.line})"></div>`).join('')}
+    </div>
+    <div style="background:rgb(${p.bg});border:1px solid rgb(${p.line});border-radius:10px;padding:12px">
+      <div style="font-size:13px;font-weight:500;color:rgb(${p.ink})">Corte feminino</div>
+      <div style="font-size:12px;color:rgb(${p['ink-3']});margin-bottom:10px">Ana · 09:00</div>
+      <span style="display:inline-block;background:rgb(${p.brand});color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:500">Confirmar</span>
+      <span style="display:inline-block;background:rgb(${p['brand-soft']});color:rgb(${p['brand-soft-ink']});border-radius:999px;padding:3px 10px;font-size:11px;font-weight:500;margin-left:6px">Membro</span>
+    </div>
+  </div>`).join('');
+
+/* Raios */
+$('#radii').innerHTML = [['sm','6px'],['md','10px'],['lg','14px'],['xl','20px'],['2xl','28px']].map(([n,v]) =>
+  `<div style="text-align:center"><div style="width:84px;height:64px;background:rgb(var(--brand-soft));border:1px solid rgb(var(--line-3));border-radius:${v}"></div>
+   <div class="note" style="margin-top:6px">rounded-${n}<br>${v}</div></div>`).join('');
+
+/* Avatares */
+const GRADS = ['linear-gradient(135deg,#c9a57b,rgb(var(--brand)))','linear-gradient(135deg,#b7a08a,#5c443a)','linear-gradient(135deg,#e1c9a5,#a37548)','linear-gradient(135deg,#a89681,#3d2b24)','linear-gradient(135deg,#d9b48a,#7a4c31)','linear-gradient(135deg,#c2a682,#56392e)'];
+const SIZES = { sm: [28, 12.5], md: [36, 14], lg: [56, 16], xl: [72, 20] };
+const names = ['Ana Souza', 'Bruna Lima', 'Carla Dias', 'Marina Alves'];
+$('#avatars').innerHTML = names.map(n => {
+  const ini = n.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase();
+  const g = GRADS[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % GRADS.length];
+  return `<div style="text-align:center">${Object.entries(SIZES).map(([k, [w, f]]) =>
+    `<div class="av" style="width:${w}px;height:${w}px;font-size:${f}px;background:${g};margin:0 6px 6px 0">${ini}</div>`).join('')}<div class="note" style="margin:0">${n}</div></div>`;
+}).join('');
+
+/* Ícones */
+$('#iconGrid').innerHTML = Object.keys(ICONS).map(n => `<button class="ic-cell" data-copy="${n}">${svg(n, 22)}<span>${n}</span></button>`).join('');
+document.querySelectorAll('.ic-cell').forEach(el => el.onclick = () => copy(el.dataset.copy));
+document.querySelectorAll('svg[data-ic]').forEach(el => {
+  el.setAttribute('viewBox', '0 0 24 24'); el.setAttribute('fill', 'none'); el.setAttribute('stroke', 'currentColor');
+  el.setAttribute('stroke-width', ['plus', 'check'].includes(el.dataset.ic) ? 2 : 1.6); el.innerHTML = ICONS[el.dataset.ic];
+});
+
+/* Animações */
+function replay() {
+  [['a1','fade-in','.24s'],['a2','fade-up','.32s'],['a3','scale-in','.2s']].forEach(([id, name, d]) => {
+    const el = document.getElementById(id); el.style.animation = 'none'; void el.offsetWidth; el.style.animation = `${name} ${d} ease-out both`;
+  });
+}
+$('#replay').onclick = replay; replay();
+
+document.querySelectorAll('.tag-code').forEach(el => { el.style.cursor = 'pointer'; el.title = 'Clique para copiar'; el.onclick = () => copy(el.textContent); });
+
+/* Numeração automática das seções (não precisa renumerar à mão) */
+document.querySelectorAll('section.block > .eyebrow').forEach((el, i) => { el.textContent = String(i + 1).padStart(2, '0'); });
+
+/* Demo do modo "ocultar valores" */
+let hidden = false;
+$('#privTog').onclick = () => {
+  hidden = !hidden;
+  const v = $('#privVal');
+  v.textContent = hidden ? '••••••' : 'R$ 1.280,00';
+  v.style.opacity = hidden ? .55 : 1; v.style.letterSpacing = hidden ? '1px' : 'normal';
+  $('#privTog').lastChild.textContent = hidden ? 'Mostrar valores' : 'Ocultar valores';
+};
+
+applyPalette('terracota');
+</script>
+</body>
+</html>

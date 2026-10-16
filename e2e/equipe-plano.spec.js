@@ -107,10 +107,11 @@ test('convite pela ficha do cliente: ao aceitar, o mesmo cadastro vira profissio
 
   const client = await newUserPage(browser)
   await loginAs(client, account)
-  await client.goto('/marketplace')
+  await client.goto('/meus-saloes') // o convite aparece no topo da lista
   await client.getByRole('button', { name: 'Aceitar' }).click()
-  await expect(client).toHaveURL(/\/meus-empregos$/) // agora é da equipe: vai para Meus empregos
-  await expect(client.getByText(s.salon.name)).toBeVisible()
+  await expect(client).toHaveURL(/\/meus-saloes$/)
+  await expect(client.getByRole('button', { name: `Entrar em ${s.salon.name}` })).toBeVisible() // agora é da equipe: o mesmo cartão passa a mostrar o papel Profissional
+  await expect(client.getByText('Profissional', { exact: true })).toBeVisible()
 
   const after = await prisma.salonMember.findUnique({ where: { id: member.id } })
   expect({ role: after.role, active: after.active }).toEqual({ role: 'Profissional', active: true })

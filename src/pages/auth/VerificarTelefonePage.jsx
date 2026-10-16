@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import logo from '@/logo-dauth-agendamentos.png'
 import { Link, useSearchParams } from 'react-router-dom'
 import platformApi from '@/lib/platformApi'
 
@@ -35,9 +36,7 @@ export default function VerificarTelefonePage() {
 
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-xl bg-brand flex items-center justify-center mb-4">
-            <span className="font-serif text-white text-2xl">D</span>
-          </div>
+          <img src={logo} alt="Dauth" className="w-14 h-14 rounded-xl object-cover mb-4" />
           <h1 className="font-display font-medium text-[28px] tracking-tight">Dauth</h1>
         </div>
 

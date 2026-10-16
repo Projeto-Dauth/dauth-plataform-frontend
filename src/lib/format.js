@@ -25,6 +25,12 @@ export function formatDate(v) {
   return new Date(v).toLocaleDateString('pt-BR')
 }
 
+// "julho de 2026" (mês e ano do dia local)
+export function formatMonthYear(v) {
+  if (!v) return '—'
+  return new Date(v).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+}
+
 // DD/MM/AAAA às HH:MM (horário local)
 export function formatDateTime(v) {
   if (!v) return '—'

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import logo from '@/logo-dauth-agendamentos.png'
 import { useNavigate, Link } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
@@ -128,7 +129,7 @@ function TabAgendamentos({ appointments, members, hasMore, loadingMore, onLoadMo
         <div style={{ padding: '64px 32px', textAlign: 'center', border: '1px dashed rgba(139,74,43,0.15)', borderRadius: 14 }}>
           <div style={{ fontFamily: "'Inter', serif", fontSize: 42, color: 'rgba(139,74,43,0.15)', marginBottom: 16 }}>✦</div>
           <p style={{ fontSize: 14, color: '#b09080', marginBottom: 12 }}>Nenhum agendamento encontrado.</p>
-          <Link to="/marketplace" style={{ fontSize: 12.5, color: '#8b4a2b', textDecoration: 'underline', textUnderlineOffset: 3 }}>Explorar salões</Link>
+          <Link to="/meus-saloes" style={{ fontSize: 12.5, color: '#8b4a2b', textDecoration: 'underline', textUnderlineOffset: 3 }}>Ver meus salões</Link>
         </div>
       ) : (
         <div>
@@ -385,23 +386,15 @@ export default function MinhaContaPage() {
         height: 52, display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', padding: '0 32px',
       }}>
-        <Link to="/marketplace" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <div style={{ width: 26, height: 26, borderRadius: 6, background: '#8b4a2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontFamily: "'Inter', serif", color: '#fff', fontSize: 14, lineHeight: 1 }}>D</span>
-          </div>
+        <Link to="/meus-saloes" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <img src={logo} alt="Dauth" style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover' }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: '#2a1e18', letterSpacing: '-0.01em' }}>Dauth</span>
         </Link>
         <nav style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <Link to="/marketplace" style={{ fontSize: 13, color: '#8b7267', textDecoration: 'none' }}
+          <Link to="/meus-saloes" style={{ fontSize: 13, color: '#8b7267', textDecoration: 'none' }}
             onMouseEnter={e => e.target.style.color = '#2a1e18'} onMouseLeave={e => e.target.style.color = '#8b7267'}>
-            Marketplace
+            Meus salões
           </Link>
-          {profile?.platformRole === 'SalonOwner' && (
-            <Link to="/meus-saloes" style={{ fontSize: 13, color: '#8b7267', textDecoration: 'none' }}
-              onMouseEnter={e => e.target.style.color = '#2a1e18'} onMouseLeave={e => e.target.style.color = '#8b7267'}>
-              Meus salões
-            </Link>
-          )}
           <button onClick={() => { logout(); navigate('/login', { replace: true }) }}
             style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#b09080', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px', borderRadius: 6, transition: 'color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.color = '#8b3a32'} onMouseLeave={e => e.currentTarget.style.color = '#b09080'}>
@@ -465,9 +458,9 @@ export default function MinhaContaPage() {
               </div>
             )}
           </div>
-          <Link to="/marketplace" style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 16, fontSize: 12, color: '#b09080', textDecoration: 'none', paddingLeft: 4 }}
+          <Link to="/meus-saloes" style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 16, fontSize: 12, color: '#b09080', textDecoration: 'none', paddingLeft: 4 }}
             onMouseEnter={e => e.currentTarget.style.color = '#8b4a2b'} onMouseLeave={e => e.currentTarget.style.color = '#b09080'}>
-            <Icon name="arrowLeft" size={12} />Voltar ao marketplace
+            <Icon name="arrowLeft" size={12} />Voltar aos meus salões
           </Link>
         </aside>
 

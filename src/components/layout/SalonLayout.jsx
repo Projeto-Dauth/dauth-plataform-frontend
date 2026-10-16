@@ -3,6 +3,7 @@ import { Outlet, useParams, Navigate, useLocation, useNavigate } from 'react-rou
 import platformApi from '@/lib/platformApi'
 import { canEnterSalon, paywallReason } from '@/lib/salonAccess'
 import PaywallScreen from '@/components/layout/PaywallScreen'
+import NotFound from '@/pages/NotFound'
 import api from '@/lib/api'
 import useSalonStore from '@/store/salonStore'
 import useAuthStore from '@/store/authStore'
@@ -50,7 +51,7 @@ function resetPalette() {
   root.removeAttribute('data-palette')
 }
 
-const PUBLIC_ROUTES = ['agendar', 'portal']
+const PUBLIC_ROUTES = ['agendar']
 
 export default function SalonLayout() {
   const { salonSlug } = useParams()
@@ -80,7 +81,7 @@ export default function SalonLayout() {
       const { salon: cur, role, memberId } = useSalonStore.getState()
       if (membership && !canEnterSalon(membership)) {
         useSalonStore.getState().clearSalon()
-        navigate(useAuthStore.getState().user?.platformRole === 'SalonOwner' ? '/meus-saloes' : '/meus-empregos', { replace: true })
+        navigate('/meus-saloes', { replace: true })
         return
       }
       const samePayments = JSON.stringify(cur?.paymentMethods) === JSON.stringify(fresh?.paymentMethods)
@@ -155,7 +156,7 @@ export default function SalonLayout() {
   }, [salonSlug])
 
   if (!isAuthenticated && !isPublicRoute) return <Navigate to="/login" replace />
-  if (notFound) return <Navigate to={isPublicRoute ? '/marketplace' : '/meus-saloes'} replace />
+  if (notFound) return isPublicRoute ? <NotFound /> : <Navigate to="/meus-saloes" replace />
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, sans-serif', color: 'rgba(42,30,24,.4)', fontSize: 14 }}>
       Carregando salão…
