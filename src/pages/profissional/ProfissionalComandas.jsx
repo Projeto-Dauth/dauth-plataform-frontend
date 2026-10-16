@@ -17,6 +17,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import PaginationControls from '@/components/ui/PaginationControls'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
@@ -33,6 +34,7 @@ const navItems = navItemsByRole['Profissional']
 
 export default function ProfissionalComandas() {
   const { user } = useAuthStore()
+  const role = useRole()
   const { addToast } = useToast()
   const [searchParams] = useSearchParams()
   const initialAppointmentId = searchParams.get('appointment')
@@ -628,7 +630,7 @@ export default function ProfissionalComandas() {
                           </span>
                           {item.Status === 'pago'
                             ? <span className="font-mono text-ink-4 shrink-0"><MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue></span>
-                            : selected.Status === 'Em aberto' && user?.role === 'Admin'
+                            : selected.Status === 'Em aberto' && role === 'Admin'
                               ? renderItemPrice(item)
                               : <span className="font-mono shrink-0"><MoneyValue>{formatCurrency(item.Unit_price * item.Quantity)}</MoneyValue></span>}
                         </div>

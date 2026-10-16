@@ -4,6 +4,7 @@ import Icon from '@/components/ui/Icons'
 import NotificationDrawer from '@/components/ui/NotificationDrawer'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import useNotificationStore from '@/store/notificationStore'
 import useWhatsappStatusStore from '@/store/whatsappStatusStore'
 import api from '@/lib/api'
@@ -12,7 +13,7 @@ export default function AppLayout({ sidebar, children }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { salonSlug } = useParams()
-  const user = useAuthStore((s) => s.user)
+  const role = useRole()
   const logout = useAuthStore((s) => s.logout)
   const { unreadCount, fetchUnreadCount, openDrawer } = useNotificationStore()
   const { status: whatsappStatus, fetchStatus: fetchWhatsappStatus } = useWhatsappStatusStore()
@@ -32,11 +33,11 @@ export default function AppLayout({ sidebar, children }) {
 
   // polling de status do WhatsApp a cada 120s — só para Admin
   useEffect(() => {
-    if (user?.role !== 'Admin') return
+    if (role !== 'Admin') return
     fetchWhatsappStatus()
     const id = setInterval(fetchWhatsappStatus, 120000)
     return () => clearInterval(id)
-  }, [user?.role])
+  }, [role])
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -74,7 +75,7 @@ export default function AppLayout({ sidebar, children }) {
           <div className="font-display font-semibold text-[13.5px] flex-1">Dauth Agendamentos</div>
 
           {/* alerta de WhatsApp desconectado — Admin only */}
-          {user?.role === 'Admin' && whatsappStatus && whatsappStatus !== 'connected' && (
+          {role === 'Admin' && whatsappStatus && whatsappStatus !== 'connected' && (
             <button
               onClick={() => navigate(salonSlug ? `/${salonSlug}/perfil` : '/perfil')}
               title="WhatsApp desconectado — toque para reconectar"

@@ -6,6 +6,7 @@ import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
 
@@ -20,6 +21,7 @@ function inputCls(err) {
 
 export default function ProfissionalHorarios() {
   const { user } = useAuthStore()
+  const role = useRole()
   const { addToast } = useToast()
 
   const [workingHours, setWorkingHours] = useState([])
@@ -153,7 +155,7 @@ export default function ProfissionalHorarios() {
   }
 
   const sidebar = (
-    <Sidebar navItems={navItemsByRole[user?.role] ?? navItemsByRole.Profissional} footerUser={user?.name} footerRole={user?.role}>{user?.role}</Sidebar>
+    <Sidebar navItems={navItemsByRole[role] ?? navItemsByRole.Profissional} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
   )
 
   if (loading) return (

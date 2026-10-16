@@ -69,9 +69,11 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '280
   const navScrollRef = useRef(null)
   const { salonSlug } = useParams()
   const { can } = usePermission()
-  // A conta de serviço usa as telas do Admin, mas o menu é sempre o dela (as telas passam o menu do Admin).
+  // O menu é SEMPRE o do papel da pessoa no salão atual, não importa o que a tela passou em `navItems`
+  // (a conta de serviço usa telas do Admin; telas compartilhadas como Perfil não sabem o papel). `navItems` só
+  // vale como reserva se o papel ainda não carregou.
   const salonRole = useSalonStore(s => s.role)
-  const menu = salonRole === 'Servico' ? navItemsByRole.Servico : navItems
+  const menu = navItemsByRole[salonRole] ?? navItems
   const visibleNavItems = menu.filter((item) => can(item.module, 'view'))
   const [upsellFeature, setUpsellFeature] = useState(null)
 

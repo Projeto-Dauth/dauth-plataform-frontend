@@ -45,7 +45,7 @@ export default function AgendarPage() {
   const { salonSlug } = useParams()
   const { addToast } = useToast()
   const { isAuthenticated, user, login } = useAuthStore()
-  const { salon, setSalon } = useSalonStore()
+  const { salon, setSalon, role } = useSalonStore()
 
   const [step, setStep] = useState(0)
 
@@ -759,7 +759,7 @@ export default function AgendarPage() {
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Button variant="primary" onClick={() => {
-                const area = user?.role === 'Admin' ? 'admin' : user?.role === 'Profissional' ? 'profissional' : 'cliente'
+                const area = role === 'Admin' ? 'admin' : role === 'Profissional' ? 'profissional' : 'cliente'
                 navigate(salonSlug ? `/${salonSlug}/${area}` : '/meus-saloes')
               }}>Ver meus agendamentos</Button>
               <Button variant="ghost" onClick={() => navigate('/meus-saloes')}>Meus salões</Button>

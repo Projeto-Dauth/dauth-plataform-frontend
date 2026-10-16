@@ -5,6 +5,7 @@ import Modal from '@/components/ui/Modal'
 import CreditAndTrocoFields from '@/components/ui/CreditAndTrocoFields'
 import api from '@/lib/api'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import { useToast } from '@/context/ToastContext'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate, formatTime } from '@/lib/format'
@@ -24,8 +25,9 @@ function nowDateAndTime() {
 export default function ModalFecharConta({ client, paying, onClose, onConfirm }) {
   const { addToast } = useToast()
   const { user } = useAuthStore()
+  const role = useRole()
   // Só Admin altera valor de item/produto da comanda — profissional apenas visualiza.
-  const canEditPrice = user?.role === 'Admin'
+  const canEditPrice = role === 'Admin'
   const [visible, setVisible] = useState(false)
   const [removedTabIds, setRemovedTabIds] = useState(new Set())
   const [removedItemIds, setRemovedItemIds] = useState(new Set())

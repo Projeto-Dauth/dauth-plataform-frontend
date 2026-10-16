@@ -18,6 +18,7 @@ import PaginationControls from '@/components/ui/PaginationControls'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
@@ -83,6 +84,7 @@ function ModalDividirItem({ item, newTotal, currentPayments, saving, onClose, on
 // ─── Aba Comandas ─────────────────────────────────────────────────────────────
 
 function TabComandas({ user, initialAppointmentId, initialGroup }) {
+  const role = useRole()
   const { addToast } = useToast()
 
   const [tabs, setTabs] = useState([])
@@ -244,20 +246,20 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
   // Admin pode editar itens/valores de uma comanda já Paga enquanto a comissão de nenhum
   // item dela tiver sido repassada — mesma regra do backend (checkTabEditable), só decide
   // se a UI oferece a edição; o endpoint continua sendo a fonte real da trava.
-  const canEditPaidTab = user?.role === 'Admin' && selected?.Status === 'Paga' && !selectedCommissionPaid
+  const canEditPaidTab = role === 'Admin' && selected?.Status === 'Paga' && !selectedCommissionPaid
   // Trocar o profissional de um item é sempre Admin-only (mesmo em comanda Em aberto) —
   // ver tabController.updateItem.
-  const canEditProfessional = user?.role === 'Admin' && (selected?.Status === 'Em aberto' || canEditPaidTab)
+  const canEditProfessional = role === 'Admin' && (selected?.Status === 'Em aberto' || canEditPaidTab)
 
   useEffect(() => {
-    if (user?.role !== 'Admin') return
+    if (role !== 'Admin') return
     Promise.all([
       api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
       api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
     ])
       .then(([a, b]) => setProfessionals([...(a.data.data ?? []), ...(b.data.data ?? [])]))
       .catch(() => setProfessionals([]))
-  }, [user?.role])
+  }, [role])
 
   // Adiciona um serviço avulso à comanda selecionada, com um profissional escolhido na
   // hora — mesma cascata de preço/comissão do backend, sem precisar de novo agendamento.
@@ -984,7 +986,7 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
                 ) : (
                   <>
                     <TabPaymentInfo tab={selected} />
-                    {selected.Status === 'Paga' && user?.role === 'Admin' && (
+                    {selected.Status === 'Paga' && role === 'Admin' && (
                       canEditPaidTab ? (
                         <div className="mt-2.5 font-mono text-[10.5px] text-ink-3 text-center">
                           Itens editáveis acima — trava assim que a comissão for repassada.

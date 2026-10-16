@@ -1,14 +1,12 @@
 import useAuthStore from '@/store/authStore'
-import useSalonStore from '@/store/salonStore'
+import { useRole } from '@/hooks/useRole'
 import { SERVICE_ACCOUNT_MODULES } from '@/config/modules'
 
 const SERVICE_KEYS = SERVICE_ACCOUNT_MODULES.map(m => m.key)
 
 export function usePermission() {
   const user = useAuthStore((state) => state.user)
-  // Papel no salão ATUAL (salonStore) vale mais que o do authStore — que pode ainda não ter sido carregado ao entrar
-  // por Meus empregos, ou ser de outro salão.
-  const role = useSalonStore((state) => state.role) ?? user?.role
+  const role = useRole()
 
   const can = (module, action = 'view') => {
     if (!module) return true

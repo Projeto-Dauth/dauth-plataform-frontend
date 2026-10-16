@@ -16,6 +16,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import ComboCard from '@/components/ui/ComboCard'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import { usePermission } from '@/hooks/usePermission'
 import api from '@/lib/api'
 
@@ -92,7 +93,7 @@ export default function DetalhesAgendamento() {
   const { addToast } = useToast()
   const navigate = useNavigate()
 
-  const role = user?.role ?? 'Usuario'
+  const role = useRole() ?? 'Usuario'
   const canEdit = role === 'Admin' || role === 'Profissional'
   const { can } = usePermission()
 

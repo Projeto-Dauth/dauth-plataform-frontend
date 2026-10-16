@@ -17,6 +17,7 @@ import useSalonStore from '@/store/salonStore'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
+import { useRole } from '@/hooks/useRole'
 import { salonHasFeature, planRequiredFor } from '@/config/plans'
 import { formatDate } from '@/lib/format'
 
@@ -35,6 +36,7 @@ export default function MeuPerfil() {
   const { salonSlug } = useParams()
   const { user, restoreSession } = useAuthStore()
   const { salon } = useSalonStore()
+  const role = useRole()
   const { addToast } = useToast()
   const navigate = useNavigate()
   const hasWhatsapp = salonHasFeature(salon, 'whatsapp')
@@ -79,13 +81,13 @@ export default function MeuPerfil() {
   }, [])
 
   useEffect(() => {
-    if (user?.role !== 'Usuario' || !user?.id) return
+    if (role !== 'Usuario' || !user?.id) return
     setApptLoading(true)
     api.get(`/appointment/client/${user.id}`, { params: { limit: 20 } })
       .then(({ data }) => setAppointments(data.data ?? []))
       .catch(() => setAppointments([]))
       .finally(() => setApptLoading(false))
-  }, [user?.id, user?.role])
+  }, [user?.id, role])
 
   function startEdit() {
     setName(profile.name ?? '')
@@ -145,10 +147,10 @@ export default function MeuPerfil() {
     }
   }
 
-  const navItems = navItemsByRole[user?.role] ?? []
-  const sidebar = user?.role === 'Usuario'
+  const navItems = navItemsByRole[role] ?? []
+  const sidebar = role === 'Usuario'
     ? <ClienteSidebar user={user} />
-    : <Sidebar navItems={navItems} footerUser={user?.name} footerRole={user?.role}>{user?.role}</Sidebar>
+    : <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>{role}</Sidebar>
 
   if (loading) {
     return (
@@ -235,7 +237,7 @@ export default function MeuPerfil() {
               <Button variant="ghost" size="sm" onClick={handleExport} loading={exporting}>
                 <Icon name="receipt" size={13} />Exportar meus dados
               </Button>
-              {user?.role === 'Admin' && (
+              {role === 'Admin' && (
                 hasWhatsapp ? (
                   <Button variant="whatsapp" size="sm" onClick={() => setWhatsappModalOpen(true)}>
                     <Icon name="qr" size={13} />Linkar com WhatsApp
@@ -261,7 +263,7 @@ export default function MeuPerfil() {
           />
         )}
 
-        {!editing && user?.role === 'Usuario' && (
+        {!editing && role === 'Usuario' && (
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-display font-medium text-[17px] tracking-tight">Histórico de agendamentos</h4>

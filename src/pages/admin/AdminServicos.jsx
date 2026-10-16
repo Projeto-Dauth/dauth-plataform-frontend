@@ -10,6 +10,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import { usePermission } from '@/hooks/usePermission'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
@@ -30,6 +31,7 @@ function CommissionPending() {
 export default function AdminServicos() {
   const { salonSlug } = useParams()
   const { user } = useAuthStore()
+  const role = useRole()
   const { addToast } = useToast()
   // O backend não envia comissão a quem não tem o módulo Comissões; a tela precisa
   // esconder os campos e nunca reenviá-los (um PATCH com Commission vazio viraria 0).
@@ -39,7 +41,7 @@ export default function AdminServicos() {
   // serviço também exige manage — definir a comissão faz parte da criação.
   const canEditCommission = can('Comissoes', 'manage')
   // Conta de serviço (notebook) cria serviço sem comissão — fica "pendente" até o Admin definir.
-  const isServiceAccount = user?.role === 'Servico'
+  const isServiceAccount = role === 'Servico'
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 

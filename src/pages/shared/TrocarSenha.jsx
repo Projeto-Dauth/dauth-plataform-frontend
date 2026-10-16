@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Icon from '@/components/ui/Icons'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
@@ -47,6 +48,7 @@ function PasswordInput({ label, value, onChange, error, placeholder }) {
 
 export default function TrocarSenha() {
   const { user, clearMustChangePassword } = useAuthStore()
+  const role = useRole()
   const { addToast } = useToast()
   const navigate = useNavigate()
   const isFirstAccess = user?.must_change_password ?? false
@@ -74,7 +76,7 @@ export default function TrocarSenha() {
       await api.patch('/users/perfil/me/password', { current_password: current, password: newPass })
       clearMustChangePassword()
       addToast('Senha atualizada com sucesso')
-      navigate(ROLE_REDIRECT[user?.role] ?? '/', { replace: true })
+      navigate(ROLE_REDIRECT[role] ?? '/', { replace: true })
     } catch (err) {
       addToast(err.response?.data?.error ?? 'Erro ao trocar senha', 'error')
     } finally {
@@ -82,11 +84,11 @@ export default function TrocarSenha() {
     }
   }
 
-  const navItems = navItemsByRole[user?.role] ?? []
+  const navItems = navItemsByRole[role] ?? []
 
   const sidebar = (
-    <Sidebar navItems={navItems} footerUser={user?.name} footerRole={user?.role}>
-      {user?.role}
+    <Sidebar navItems={navItems} footerUser={user?.name} footerRole={role}>
+      {role}
     </Sidebar>
   )
 
