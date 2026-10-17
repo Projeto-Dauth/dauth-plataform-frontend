@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -17,6 +17,13 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
 import MoneyValue from '@/components/ui/MoneyValue'
+import DashboardGrid from '@/components/dashboard/DashboardGrid'
+import DashboardEditor from '@/components/dashboard/DashboardEditor'
+import UpgradeModal from '@/components/ui/UpgradeModal'
+import Button from '@/components/ui/Button'
+import useSalonStore from '@/store/salonStore'
+import { useToast } from '@/context/ToastContext'
+import { DEFAULT_DASHBOARD_WIDGETS } from '@/config/defaultDashboardWidgets'
 import usePrivacyStore from '@/store/privacyStore'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -109,16 +116,62 @@ export default function AdminDashboard() {
   const [preset, setPreset] = useState('7d')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  // Dashboard personalizado (Business): undefined = carregando, null = usa o padrão abaixo, array = widgets salvos
+  const [layout, setLayout] = useState(undefined)
+  const [allowed, setAllowed] = useState(false) // o plano libera o editor
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [upsell, setUpsell] = useState(false)
+  const { salon } = useSalonStore()
+  const { addToast } = useToast()
 
   useEffect(() => {
+    api.get('/dashboard/layout')
+      .then(res => { setAllowed(res.data.allowed); setLayout(res.data.allowed && res.data.widgets?.length ? res.data.widgets : null) })
+      .catch(() => setLayout(null))
+  }, [])
+
+  const errorText = (err, fallback) => [].concat(err.response?.data?.error ?? fallback).join(' ')
+
+  async function saveLayout(widgets) {
+    setSaving(true)
+    try {
+      const res = await api.put('/dashboard/layout', { widgets })
+      setLayout(res.data.widgets)
+      setEditing(false)
+      addToast('Dashboard salvo', 'success')
+    } catch (err) {
+      addToast(errorText(err, 'Erro ao salvar o dashboard'), 'error')
+    } finally { setSaving(false) }
+  }
+
+  async function resetToOriginal() {
+    setSaving(true)
+    try {
+      await api.delete('/dashboard/layout')
+      setLayout(null)
+      setEditing(false)
+      addToast('Dashboard original restaurado', 'success')
+    } catch (err) {
+      addToast(errorText(err, 'Erro ao restaurar o dashboard'), 'error')
+    } finally { setSaving(false) }
+  }
+
+  // Filtro de período único da página (vale para o dashboard padrão e para todos os widgets do personalizado)
+  const period = useMemo(
+    () => preset === 'custom' ? (customFrom && customTo ? { from: customFrom, to: customTo } : null) : rangeForPreset(preset),
+    [preset, customFrom, customTo],
+  )
+
+  useEffect(() => {
+    if (layout) return // dashboard personalizado: cada widget busca os próprios dados
     if (preset === 'custom' && (!customFrom || !customTo)) return
     setLoading(true)
-    const params = preset === 'custom' ? { from: customFrom, to: customTo } : rangeForPreset(preset)
-    api.get('/dashboard', { params })
+    api.get('/dashboard', { params: period })
       .then(res => setData(res.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [preset, customFrom, customTo])
+  }, [preset, customFrom, customTo, period, layout])
 
   const sidebar = <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin" />
 
@@ -153,6 +206,65 @@ export default function AdminDashboard() {
         </div>
       )}
     </div>
+  )
+
+  if (layout === undefined) return <AppLayout sidebar={sidebar}><PageSpinner /></AppLayout>
+
+  // Business edita; os demais planos veem o botão com cadeado que abre o upgrade (mesmo padrão do menu).
+  const customizeButton = (
+    <Button variant="outline" size="sm" onClick={() => (allowed ? setEditing(true) : setUpsell(true))}>
+      <Icon name={allowed ? 'edit' : 'lock'} size={14} /> Personalizar
+    </Button>
+  )
+  const upsellModal = upsell && (
+    <UpgradeModal
+      salonId={salon?.id}
+      defaultPlan="business"
+      feature="dashboard_custom"
+      onClose={() => setUpsell(false)}
+      onActivated={() => { setUpsell(false); window.location.reload() }}
+    />
+  )
+
+  // Dashboard personalizado e editor usam a largura toda da tela (o padrão segue centralizado como antes).
+  if (editing) return (
+    <AppLayout sidebar={sidebar}>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-display font-semibold tracking-tight text-ink">Personalizar dashboard</h1>
+          {periodFilter}
+        </div>
+        <DashboardEditor
+          period={period}
+          initialWidgets={layout ?? DEFAULT_DASHBOARD_WIDGETS}
+          hasSaved={Boolean(layout)}
+          saving={saving}
+          onSave={saveLayout}
+          onCancel={() => setEditing(false)}
+          onResetToOriginal={resetToOriginal}
+        />
+      </div>
+    </AppLayout>
+  )
+
+  if (layout) return (
+    <AppLayout sidebar={sidebar}>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-semibold tracking-tight text-ink">Dashboard</h1>
+            <p className="text-sm text-ink-4 mt-1">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {periodFilter}
+            {customizeButton}
+          </div>
+        </div>
+        <DashboardGrid widgets={layout} period={period} />
+      </div>
+    </AppLayout>
   )
 
   if (loading || !data) return (
@@ -193,7 +305,10 @@ export default function AdminDashboard() {
               {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
-          {periodFilter}
+          <div className="flex flex-wrap items-center gap-3">
+            {periodFilter}
+            {customizeButton}
+          </div>
         </div>
 
         {/* Alertas */}
@@ -381,6 +496,7 @@ export default function AdminDashboard() {
         </section>
 
       </div>
+      {upsellModal}
     </AppLayout>
   )
 }

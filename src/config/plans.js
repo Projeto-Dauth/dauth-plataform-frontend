@@ -26,8 +26,8 @@ export const PLANS = [
     priceCents: 19990,
     maxProfessionals: null,
     tagline: 'Para operações maiores',
-    features: ['Tudo do Profissional', 'BI direcionado ao negócio', 'Sem limite de profissionais'],
-    featureIds: ['pacotes', 'produtos', 'whatsapp'],
+    features: ['Tudo do Profissional', 'Dashboard personalizável', 'BI direcionado ao negócio', 'Sem limite de profissionais'],
+    featureIds: ['pacotes', 'produtos', 'whatsapp', 'dashboard_custom'],
   },
 ]
 
@@ -36,6 +36,7 @@ export const FEATURE_LABEL = {
   pacotes: 'Pacotes',
   produtos: 'Produtos',
   whatsapp: 'WhatsApp do salão',
+  dashboard_custom: 'Dashboard personalizável',
 }
 
 // Path (sem leading /, igual navItems.js) → feature exigida. Espelha PATH_TO_MODULE/modules.js.

@@ -46,16 +46,17 @@ const overlay = () => {
 
 export const pause = (page, ms) => page.waitForTimeout(ms)
 
-// Legendas: por padrão NÃO ficam gravadas no vídeo — cada `say` vira uma fala com horário e sai em
-// demo-output/legendas/<slug>.srt (+ .txt só com o texto). Para o vídeo com a legenda na tela
-// (formato antigo): DEMO_BURN_CAPTIONS=1.
-const BURN = process.env.DEMO_BURN_CAPTIONS === '1'
+// Legendas: por padrão ficam GRAVADAS no vídeo (o Docs não usa arquivo de legenda separado). Cada `say`
+// também vira uma fala com horário em demo-output/legendas/<slug>.srt (+ .txt só com o texto).
+// Para o vídeo sem legenda na tela: DEMO_BURN_CAPTIONS=0.
+const BURN = process.env.DEMO_BURN_CAPTIONS !== '0'
 const sceneCues = new WeakMap() // page → { cues: [{ at, text, ms }] }
 
 // A fala roda JUNTO com a ação que descreve: `say` não espera o fim da fala, só o fim da fala
 // ANTERIOR (para duas falas nunca se sobreporem). A duração vem do tamanho do texto (~13 caracteres
 // por segundo de fala), então a ação segue o ritmo de quem narra e não há pausa morta.
-const speechSeconds = (text) => (text ? Math.max(1.8, text.length / 13 + 0.5) : 0)
+// Legenda só em texto (sem voz): leitura mais rápida, ~18 caracteres por segundo.
+const speechSeconds = (text) => (text ? Math.max(1.5, text.length / 18 + 0.4) : 0)
 
 export async function say(page, text) {
   await page.waitForSelector('#__demo-cap', { state: 'attached' })
@@ -154,6 +155,20 @@ export async function pickSlow(page, trigger, optionText, search = optionText) {
   const box = trigger.locator('xpath=..')
   await typeSlow(page, box.getByPlaceholder('Buscar…'), search)
   await tap(page, box.locator('li', { hasText: optionText }).first(), 1000)
+}
+// Versões rápidas dos dois acima, para os vídeos curtos do Docs (até 30 s)
+export async function typeQuick(page, locator, text) {
+  await glide(page, locator)
+  await locator.click()
+  await locator.pressSequentially(text, { delay: 45 })
+  await pause(page, 350)
+}
+export async function pickQuick(page, trigger, optionText, search = optionText) {
+  await tap(page, trigger, 400)
+  const box = trigger.locator('xpath=..')
+  await box.getByPlaceholder('Buscar…').pressSequentially(search, { delay: 45 })
+  await pause(page, 300)
+  await tap(page, box.locator('li', { hasText: optionText }).first(), 500)
 }
 // Seleção em <select> nativo: aponta, abre e escolhe pelo texto
 export async function chooseSlow(page, select, label) {

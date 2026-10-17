@@ -1,0 +1,18 @@
+{
+  "Admin": {
+    "dashboard": "admin-dashboard.webm",
+    "agenda": "admin-agenda.webm",
+    "agendamentos": "admin-agendamentos.webm",
+    "clientes": "admin-clientes.webm",
+    "servicos": "admin-servicos.webm",
+    "pacotes": "admin-pacotes.webm",
+    "convidar-profissional": "admin-convidar-profissional.webm",
+    "caixa": "admin-caixa.webm",
+    "comissoes": "admin-comissoes.webm",
+    "produtos": "admin-produtos.webm",
+    "meus-servicos-horarios": "admin-meus-servicos-horarios.webm",
+    "notificacoes": "admin-notificacoes.webm",
+    "perfil": "admin-perfil.webm"
+  },
+  "Profissional": {}
+}

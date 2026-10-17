@@ -53,6 +53,7 @@ import MinhasComandas from '@/pages/cliente/MinhasComandas'
 import MeuPerfil from '@/pages/shared/MeuPerfil'
 import TrocarSenha from '@/pages/shared/TrocarSenha'
 import DetalhesAgendamento from '@/pages/shared/DetalhesAgendamento'
+import DocsPage from '@/pages/shared/DocsPage'
 
 // Público
 import AgendarPage from '@/pages/public/AgendarPage'
@@ -107,6 +108,7 @@ const router = createBrowserRouter([
       { path: 'trocar-senha',        handle: { title: 'Trocar senha' }, element: <ProtectedRoute allowedRoles={ALL}><TrocarSenha /></ProtectedRoute> },
       { path: 'agendamento/:id',     handle: { title: 'Agendamento' }, element: <ProtectedRoute allowedRoles={ALL}><DetalhesAgendamento /></ProtectedRoute> },
       { path: 'agendar',             handle: { title: 'Agendar' }, element: <AgendarPage /> },
+      { path: 'docs',                handle: { title: 'Documentação' }, element: <ProtectedRoute allowedRoles={['Admin', 'Profissional']}><DocsPage /></ProtectedRoute> },
 
       // Admin
       { path: 'admin',                         handle: { title: 'Agenda' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin']}><AdminAgenda /></ProtectedRoute> },

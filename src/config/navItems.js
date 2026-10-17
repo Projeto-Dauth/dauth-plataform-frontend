@@ -29,6 +29,7 @@ export const navItemsByRole = {
     { to: 'admin/meus-horarios', icon: 'clock', label: 'Meus horários' },
     { to: 'perfil', icon: 'users', label: 'Meu perfil' },
     { to: 'admin/configuracoes', icon: 'settings', label: 'Configurações' },
+    { to: 'docs', icon: 'book', label: 'Docs' },
   ],
   Profissional: [
     { to: 'profissional', end: true, icon: 'cal', label: 'Agenda' },
@@ -42,6 +43,7 @@ export const navItemsByRole = {
     { to: 'profissional/servicos', icon: 'scissors', label: 'Meus serviços' },
     { to: 'profissional/horarios', icon: 'clock', label: 'Meus horários' },
     { to: 'perfil', icon: 'users', label: 'Meu perfil' },
+    { to: 'docs', icon: 'book', label: 'Docs' },
     { type: 'label', label: 'Como cliente' },
     { to: 'cliente', icon: 'cal', label: 'Meus atendimentos' },
   ],
