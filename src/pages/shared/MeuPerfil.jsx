@@ -20,6 +20,7 @@ import { navItemsByRole } from '@/config/navItems'
 import { useRole } from '@/hooks/useRole'
 import { salonHasFeature, planRequiredFor } from '@/config/plans'
 import { formatDate } from '@/lib/format'
+import { downloadJson } from '@/lib/download'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 
@@ -112,13 +113,7 @@ export default function MeuPerfil() {
     setExporting(true)
     try {
       const { data } = await api.get('/users/perfil/me/export')
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'meus-dados-dauth.json'
-      a.click()
-      URL.revokeObjectURL(url)
+      downloadJson('meus-dados-dauth.json', data)
       addToast('Dados exportados com sucesso')
     } catch {
       addToast('Erro ao exportar dados', 'error')
@@ -192,7 +187,6 @@ export default function MeuPerfil() {
           <div className="bg-danger-soft border border-danger/20 rounded-xl p-5">
             <p className="text-[13.5px] text-danger font-medium mb-1">Não foi possível carregar o perfil</p>
             <p className="text-[12.5px] text-danger/80">{loadError}</p>
-            <p className="text-[12px] text-ink-3 mt-3">Verifique o console do navegador (F12) para mais detalhes.</p>
           </div>
         </div>
       </AppLayout>

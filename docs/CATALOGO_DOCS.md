@@ -13,9 +13,9 @@ Ponto de entrada da documentação de uso. Cada tópico liga **texto** (`src/con
 | dashboard | `admin/dashboard` | OK | Conferir nomes dos cartões (Ticket médio, Cancelamentos). | admin-dashboard |
 | agenda | `admin` | ATUALIZAR | Recorrência semanal e cancelar série; assistente por serviço; atendimento combinado (2+ profissionais); folga parcial/total; bloqueios do agendamento online. | admin-agenda |
 | agendamentos | `admin/agendamentos` | ATUALIZAR | Editar serviços do agendamento; cancelar série recorrente; ações em grupo. | admin-agendamentos |
-| clientes | `admin/usuarios` | ATUALIZAR | "Cliente desde"; ajustar crédito do cliente; convidar para a equipe; quitação fica em **Mensalistas** (não em Clientes). | admin-clientes |
+| clientes | `admin/usuarios` | ATUALIZAR | "Cliente desde"; ajustar crédito do cliente; convidar para a equipe; quitação fica em **Mensalistas** (não em Clientes). **Feito no .md (2026-10-24):** telefone só leitura e "Redefinir senha" por link no WhatsApp. O vídeo `admin-clientes` não mostra isso. | admin-clientes |
 | servicos | `admin/servicos` | ATUALIZAR | Comissão sugerida da assistente; preço/comissão por profissional; selo "Comissão pendente"; limite por conta de serviço. | admin-servicos |
-| pacotes | `admin/combos` | ATUALIZAR | Preço e comissão obrigatórios por item e soma = preço do pacote; aba **Pacotes vendidos**; concluir manualmente (com motivo); cancelar venda não paga; plano Profissional+. | admin-pacotes |
+| pacotes | `admin/combos` | ATUALIZAR | Preço e comissão obrigatórios por item e soma = preço do pacote; aba **Pacotes vendidos**; concluir manualmente (com motivo); cancelar venda não paga; plano Profissional+. **Feito no .md (2026-10-24):** Valor/sessão × quantidade = preço (com exemplo) e a opção de o Profissional vender (Configurações → Pagamentos). | admin-pacotes |
 | convidar-profissional | `admin/convidar-profissional` | ATUALIZAR | Virou "Profissionais": lista de convites (reenviar/cancelar), uso do plano (vagas), aceite pelo link com confirmação por WhatsApp, **contas de serviço**, remover = desativar. | admin-convidar-profissional |
 | caixa | `admin/caixa` | ATUALIZAR | Nome "Mensalista" (não "Fiado"); pagamento dividido; valor recebido e troco que vira crédito; crédito do cliente; serviço/produto avulso no Fechar conta; excluir comanda; formas aceitas pelo salão. | admin-caixa |
 | mensalistas | `admin/mensalistas` | **NOVO** | Fiado em aberto, quitar com forma real de pagamento, comissão só sai ao quitar. | — |
@@ -38,6 +38,7 @@ Ponto de entrada da documentação de uso. Cada tópico liga **texto** (`src/con
 | agendamentos | `profissional/agendamentos` | ATUALIZAR | Idem Agendamentos. | — |
 | comandas | `profissional/comandas` | ATUALIZAR | Mensalista, pagamento dividido, crédito. | — |
 | produtos | `profissional/produtos`, `profissional/pedidos-produtos` | ATUALIZAR | Plano; permissões. | — |
+| pacotes | `profissional/combos` | **NOVO** (.md feito 2026-10-24) | Só aparece quando o Admin liga "Venda de pacotes"; vende, não cria/edita. | — |
 | comissoes | `profissional/comissoes` | ATUALIZAR | Papel Assistente; "via pacote". | — |
 | servicos-horarios | `profissional/servicos`, `profissional/horarios` | OK | Nomes das rotas. | — |
 | notificacoes / perfil | — | OK / ATUALIZAR | Telefone com confirmação. | — |

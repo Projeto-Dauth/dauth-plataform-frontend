@@ -134,6 +134,7 @@ const router = createBrowserRouter([
       { path: 'profissional/servicos',         handle: { title: 'Meus serviços' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']}><ProfissionalServicos /></ProtectedRoute> },
       { path: 'profissional/comissoes',        handle: { title: 'Minhas comissões' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comissoes']}><ProfissionalComissoes /></ProtectedRoute> },
       { path: 'profissional/comandas',         handle: { title: 'Comandas' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comandas']}><ProfissionalComandas /></ProtectedRoute> },
+      { path: 'profissional/combos',          handle: { title: 'Pacotes' }, element: <ProtectedRoute allowedRoles={['Profissional']} requiredModule={NAV_ITEM_MODULE['profissional/combos']}><AdminCombos /></ProtectedRoute> },
       { path: 'profissional/produtos',         handle: { title: 'Produtos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/produtos']}><ProfissionalProdutos /></ProtectedRoute> },
       { path: 'profissional/pedidos-produtos', handle: { title: 'Pedidos de produtos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/pedidos-produtos']}><ProfissionalPedidosProdutos /></ProtectedRoute> },
 

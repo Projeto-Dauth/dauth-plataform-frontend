@@ -9,8 +9,11 @@ import usePrivacyStore from '@/store/privacyStore'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
+import { refreshStoreSalon } from '@/lib/salonAccess'
+import { reloadStoreSalon } from '@/lib/subscription'
+import SubscriptionPanel from '@/components/billing/SubscriptionPanel'
 import { navItemsByRole } from '@/config/navItems'
-import { PLANS, salonHasFeature, planRequiredFor } from '@/config/plans'
+import { salonHasFeature, planRequiredFor } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import { formatPhoneOrLandline } from '@/lib/phone'
 import { PAYMENT_METHODS } from '@/config/paymentMethods'
@@ -60,14 +63,6 @@ const PALETTES = [
   { id: 'ocean',     label: 'Ocean',     color: '#2b4a6b', accent: '#7badc9' },
   { id: 'midnight',  label: 'Midnight',  color: '#9b8fc9', accent: '#3a3a5a' },
 ]
-
-const PLAN_LABELS = Object.fromEntries(PLANS.map(p => [p.id, p.label]))
-
-function daysRemaining(trialEndsAt) {
-  if (!trialEndsAt) return null
-  const diff = new Date(trialEndsAt) - new Date()
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-}
 
 // Fusos: os do Brasil no topo com nome amigável; depois todos os fusos IANA que o navegador conhece,
 // agrupados por região. O backend aceita qualquer fuso válido (isValidTimezone em salonSettings.js).
@@ -142,6 +137,7 @@ function editableFromConfig(d) {
       timezone: d.timezone, instagram: d.instagram ?? '', showPrices: d.showPrices, showTeam: d.showTeam,
       bookingEnabled: d.bookingEnabled, bookingSlotMinutes: d.bookingSlotMinutes, bookingMinAdvanceMinutes: d.bookingMinAdvanceMinutes,
       bookingMaxDaysAhead: d.bookingMaxDaysAhead, bookingAutoConfirm: d.bookingAutoConfirm, paymentMethods: d.paymentMethods,
+      professionalsSellPackages: d.professionalsSellPackages,
     },
     hourRows: toHourRows(d.businessHours),
   }
@@ -298,7 +294,11 @@ export default function AdminConfiguracoes() {
   const [form, setForm] = useState({ name: '', phone: '', address: '', description: '', colorPalette: 'terracota' })
   const [settings, setSettings] = useState(null) // configs de agendamento, pagamento e página pública
   const [hourRows, setHourRows] = useState(() => toHourRows(null))
-  const [tab, setTab] = useState('geral')
+  // ?tab=plano abre direto na aba (link dos avisos de renovação)
+  const [tab, setTab] = useState(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab')
+    return TABS.some(t => t.id === wanted) ? wanted : 'geral'
+  })
   const setSetting = (key, value) => setSettings(s => ({ ...s, [key]: value }))
   // Alterações não salvas = estado da tela diferente do último estado salvo
   const [savedSnapshot, setSavedSnapshot] = useState(null)
@@ -315,6 +315,8 @@ export default function AdminConfiguracoes() {
   const savedPaletteRef = useRef(salon?.colorPalette ?? 'terracota')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState(null)
+  const [renewing, setRenewing] = useState(false) // PIX de renovação: já vai direto para o plano atual
+  const [billingVersion, setBillingVersion] = useState(0) // muda depois de um pagamento: o painel do plano busca de novo
   const [waCreating, setWaCreating] = useState(false)
   const [waModalOpen, setWaModalOpen] = useState(false)
   const waStatus = useWhatsappStatusStore(s => s.status)
@@ -337,12 +339,24 @@ export default function AdminConfiguracoes() {
     }
   }
 
+  // Pagamento confirmado: o painel do plano busca de novo e devolve o estado fresco por handleBilling
   const handleActivated = useCallback(() => {
     setShowUpgrade(false)
-    setConfig(c => c ? { ...c, status: 'active' } : c)
-    if (salon) setSalon({ ...salon, status: 'active' }, role, memberId)
-    addToast('Plano ativado com sucesso! Bem-vindo ao Pro 🎉', 'success')
-  }, [salon, role, memberId])
+    setBillingVersion(v => v + 1)
+    reloadStoreSalon().catch(() => {})
+    addToast('Pagamento confirmado! Sua assinatura está em dia.', 'success')
+  }, [])
+
+  // Mantém plano/status/vencimento da página (recursos liberados, código de acesso…) iguais aos da assinatura
+  const handleBilling = useCallback((b) => {
+    setConfig(c => c ? { ...c, status: b.status, plan: b.plan, planEndsAt: b.planEndsAt, cancelAtPeriodEnd: b.cancelAtPeriodEnd } : c)
+  }, [])
+
+  const openPayment = ({ renew }) => {
+    setUpgradeFeature(null)
+    setRenewing(renew)
+    setShowUpgrade(true)
+  }
 
   useEffect(() => {
     if (!salonId) return
@@ -372,7 +386,7 @@ export default function AdminConfiguracoes() {
       const payload = { ...form, ...settings, businessHours: fromHourRows(hourRows) }
       const r = await platformApi.patch('/salon/config', payload, { headers: { 'x-salon-id': salonId } })
       applyConfig(r.data) // valores normalizados pelo servidor (ex: @ do Instagram) viram o novo "salvo"
-      if (salon) setSalon({ ...salon, colorPalette: form.colorPalette, paymentMethods: r.data.paymentMethods }, role, memberId)
+      if (salon) setSalon({ ...refreshStoreSalon(salon, r.data), colorPalette: form.colorPalette }, role, memberId)
       addToast('Configurações salvas com sucesso!', 'success')
     } catch (err) {
       addToast(err.response?.data?.error ?? 'Erro ao salvar configurações', 'error')
@@ -398,10 +412,6 @@ export default function AdminConfiguracoes() {
     textTransform: 'uppercase', color: 'rgb(var(--ink-3))', marginBottom: 6,
   }
 
-  const days = config ? daysRemaining(config.trialEndsAt) : null
-  const isTrial = config?.status === 'trial'
-  const isSuspended = config?.status === 'suspended'
-  const isPendingPayment = config?.status === 'pending_payment'
   const hasWhatsapp = salonHasFeature(config, 'whatsapp')
 
   return (
@@ -411,6 +421,7 @@ export default function AdminConfiguracoes() {
         salonId={salonId}
         defaultPlan={config?.plan}
         feature={upgradeFeature}
+        lockPlan={renewing}
         onClose={() => setShowUpgrade(false)}
         onActivated={handleActivated}
       />
@@ -542,62 +553,25 @@ export default function AdminConfiguracoes() {
                       </optgroup>
                     ))}
                   </select>
-                  <p style={{ fontSize: 11, color: 'rgb(var(--ink-4))', marginTop: 4 }}>
-                    Usado para calcular os horários disponíveis no agendamento online.
-                  </p>
                 </div>
               </>
             )}
           </div>
         </section>}
 
-        {/* ── Preferências ── */}
-        {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
-          <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
-            Preferências
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 13.5, fontWeight: 600, color: 'rgb(var(--ink))', margin: 0 }}>
-                Ocultar valores financeiros
-              </p>
-              <p style={{ fontSize: 12, color: 'rgb(var(--ink-3))', marginTop: 2 }}>
-                Substitui comissões, receitas e outros valores por •••• na tela — útil para mostrar o sistema com alguém por perto sem expor números reais.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={valuesHidden}
-              onClick={toggleValuesHidden}
-              style={{
-                position: 'relative', width: 40, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
-                border: 'none', padding: 0, transition: 'background .18s',
-                background: valuesHidden ? 'rgb(var(--brand))' : 'rgb(var(--line-2))',
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: '50%',
-                background: '#fff', boxShadow: '0 1px 3px rgb(0 0 0 / 0.2)', transition: 'transform .18s',
-                transform: valuesHidden ? 'translateX(16px)' : 'translateX(0)',
-              }} />
-            </button>
-          </div>
-        </section>}
-
         {/* ── Agendamento online ── */}
         {tab === 'agendamento' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
           <Section title="Agendamento online" description="Como os clientes agendam sozinhos pelo link de agendamento do salão. Admin e profissionais continuam agendando livremente pela agenda.">
-            <SettingRow title="Permitir agendamento online" hint="Desligado, o link de agendamento fica indisponível para os clientes.">
+            <SettingRow title="Permitir agendamento online">
               <Switch checked={settings.bookingEnabled} onChange={v => setSetting('bookingEnabled', v)} />
             </SettingRow>
             {settings.bookingEnabled && (
-                <SettingRow title="Mostrar preços" hint="Desligado, os serviços aparecem sem valor no agendamento online.">
+                <SettingRow title="Mostrar preços">
                   <Switch checked={settings.showPrices} onChange={v => setSetting('showPrices', v)} />
                 </SettingRow>
             )}
             {settings.bookingEnabled && (
-                <SettingRow title="Confirmar automaticamente" hint="Ligado, o agendamento do cliente já entra confirmado. Desligado, entra como pendente até alguém do salão confirmar.">
+                <SettingRow title="Confirmar automaticamente" hint="Desligado, o agendamento entra como pendente até alguém do salão confirmar.">
                   <Switch checked={settings.bookingAutoConfirm} onChange={v => setSetting('bookingAutoConfirm', v)} />
                 </SettingRow>
             )}
@@ -628,6 +602,7 @@ export default function AdminConfiguracoes() {
 
         {/* ── Formas de pagamento ── */}
         {tab === 'pagamentos' && (loading || !settings ? <section style={sectionStyle}><SkeletonRow /></section> : (
+          <>
           <Section title="Formas de pagamento" description="Só as formas ligadas aparecem na hora de fechar comandas, pedidos e mensalidades.">
             {PAYMENT_METHODS.map(m => {
               const checked = settings.paymentMethods.includes(m.id)
@@ -645,6 +620,44 @@ export default function AdminConfiguracoes() {
               )
             })}
           </Section>
+          <Section title="Venda de pacotes" description="Quem pode vender pacotes aos clientes.">
+            <SettingRow title="Profissionais vendem pacotes" hint="Criar e editar pacotes continua só com o Admin.">
+              <Switch checked={!!settings.professionalsSellPackages} onChange={v => setSetting('professionalsSellPackages', v)} />
+            </SettingRow>
+          </Section>
+          <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+          <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
+            Preferências
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: 'rgb(var(--ink))', margin: 0 }}>
+                Ocultar valores financeiros
+              </p>
+              <p style={{ fontSize: 12, color: 'rgb(var(--ink-3))', marginTop: 2 }}>
+                Troca comissões, receitas e outros valores por •••• na tela, para mostrar o sistema sem expor números.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={valuesHidden}
+              onClick={toggleValuesHidden}
+              style={{
+                position: 'relative', width: 40, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
+                border: 'none', padding: 0, transition: 'background .18s',
+                background: valuesHidden ? 'rgb(var(--brand))' : 'rgb(var(--line-2))',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: '50%',
+                background: '#fff', boxShadow: '0 1px 3px rgb(0 0 0 / 0.2)', transition: 'transform .18s',
+                transform: valuesHidden ? 'translateX(16px)' : 'translateX(0)',
+              }} />
+            </button>
+          </div>
+        </section>
+          </>
         ))}
 
         {/* ── Página pública (desativada na versão beta) ── */}
@@ -709,7 +722,7 @@ export default function AdminConfiguracoes() {
               </p>
               <button
                 type="button"
-                onClick={() => { setUpgradeFeature("whatsapp"); setShowUpgrade(true) }}
+                onClick={() => { setUpgradeFeature("whatsapp"); setRenewing(false); setShowUpgrade(true) }}
                 style={{
                   padding: '11px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600,
                   fontFamily: 'Inter, sans-serif', cursor: 'pointer',
@@ -795,79 +808,7 @@ export default function AdminConfiguracoes() {
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
             Informações do Plano
           </h2>
-          {loading ? (
-            <div style={{ height: 60, borderRadius: 10, background: 'rgb(var(--ink) / 0.06)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 14px', borderRadius: 20, fontWeight: 700, fontSize: 12, letterSpacing: '.04em', textTransform: 'uppercase',
-                  background: config?.status === 'active' ? 'linear-gradient(135deg, #c9a57b, #8b4a2b)' : 'rgb(var(--ink) / 0.07)',
-                  color: config?.status === 'active' ? '#fff' : 'rgb(var(--ink))',
-                }}>
-                  {config?.plan === 'business' && (
-                    <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor">
-                      <path d="M5.5 0l1.3 3.9h4.1l-3.3 2.4 1.3 3.9L5.5 8 2.1 10.2l1.3-3.9L.1 3.9h4.1z" />
-                    </svg>
-                  )}
-                  {config?.plan ? (PLAN_LABELS[config.plan] ?? config.plan) : 'Trial'}
-                </div>
-
-                {isTrial && days !== null && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: days > 2 ? '#4a6b3e' : '#8b3a32',
-                      boxShadow: days > 2 ? '0 0 0 3px rgba(74,107,62,.2)' : '0 0 0 3px rgba(139,58,50,.2)',
-                    }} />
-                    <span style={{ fontSize: 13, color: days > 2 ? '#4a6b3e' : '#8b3a32', fontWeight: 600 }}>
-                      {days > 0 ? `${days} dia${days !== 1 ? 's' : ''} de trial restante${days !== 1 ? 's' : ''}` : 'Trial encerrado hoje'}
-                    </span>
-                  </div>
-                )}
-                {isSuspended && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#8b3a32', boxShadow: '0 0 0 3px rgba(139,58,50,.2)' }} />
-                    <span style={{ fontSize: 13, color: '#8b3a32', fontWeight: 600 }}>Acesso suspenso</span>
-                  </div>
-                )}
-                {isPendingPayment && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#8b3a32', boxShadow: '0 0 0 3px rgba(139,58,50,.2)' }} />
-                    <span style={{ fontSize: 13, color: '#8b3a32', fontWeight: 600 }}>Aguardando pagamento</span>
-                  </div>
-                )}
-                {config?.status === 'active' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4a6b3e', boxShadow: '0 0 0 3px rgba(74,107,62,.2)' }} />
-                    <span style={{ fontSize: 13, color: '#4a6b3e', fontWeight: 600 }}>Ativo</span>
-                  </div>
-                )}
-              </div>
-
-              {config?.status !== 'active' && (
-                <button
-                  type="button"
-                  onClick={() => { setUpgradeFeature(null); setShowUpgrade(true) }}
-                  style={{
-                    padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    fontFamily: 'Inter, sans-serif', cursor: 'pointer',
-                    border: 'none', background: 'rgb(var(--brand))',
-                    color: '#fff', display: 'flex', alignItems: 'center', gap: 6,
-                    transition: 'background .18s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgb(var(--brand) / 0.85)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'rgb(var(--brand))'}
-                >
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M6.5 1l1.5 4h4l-3 2.5 1.2 4L6.5 9l-3.7 2.5L4 7.5 1 5h4z" />
-                  </svg>
-                  Fazer upgrade
-                </button>
-              )}
-            </div>
-          )}
+          <SubscriptionPanel salonId={salonId} config={config} refreshKey={billingVersion} onPay={openPayment} onBilling={handleBilling} />
         </section>}
 
         {/* ── Salvar ── */}

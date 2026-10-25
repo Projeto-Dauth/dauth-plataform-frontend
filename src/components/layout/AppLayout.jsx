@@ -2,6 +2,7 @@ import { useState, cloneElement, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '@/components/ui/Icons'
 import NotificationDrawer from '@/components/ui/NotificationDrawer'
+import RenewalNotice from '@/components/billing/RenewalNotice'
 import logo from '@/logo-dauth-agendamentos.png'
 import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
@@ -105,6 +106,7 @@ export default function AppLayout({ sidebar, children }) {
           </button>
         </div>
 
+        <RenewalNotice />
         {children}
       </main>
 

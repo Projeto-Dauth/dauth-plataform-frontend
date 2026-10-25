@@ -20,14 +20,18 @@ Depois de criar, abra o pacote e adicione os itens que fazem parte dele:
 
 - **Serviço** — qual serviço está incluso
 - **Quantidade** — quantas sessões daquele serviço o cliente tem direito
+- **Valor/sessão** — quanto vale **cada sessão** dentro do pacote
+- **Comissão (%)** — a comissão do profissional em cada sessão do pacote
 
 Um pacote pode ter vários serviços diferentes, cada um com sua própria quantidade de sessões.
+
+**A soma precisa fechar com o preço do pacote:** `Valor/sessão × Quantidade`, somado de todos os serviços, tem que dar o preço total. Exemplo do "Combo Noiva" de R$ 599: 5 cortes a R$ 70 por sessão (R$ 350) + 1 unha de R$ 249 = R$ 599. A tela mostra o cálculo de cada serviço e avisa em vermelho enquanto não fechar. Sem Valor/sessão e Comissão em todos os serviços, o pacote não pode ser vendido.
 
 ## 3. Vender para um cliente
 
 ![Menu com informações para realizar a venda de um pacote](/docs-images/vender-pacote.webp)
 
-Clique em "Vender" no card do pacote e selecione o cliente. A partir daí:
+Clique em "Vender" no card do pacote e selecione o cliente. Por padrão só o Admin vende; para os profissionais também venderem, ligue **Configurações → Pagamentos → Venda de pacotes**. Eles passam a ver a página Pacotes, mas continuam sem criar ou editar pacotes. A partir daí:
 
 - O pacote aparece na conta do cliente (visível em "Meus combos", na área dele).
 - É criada uma comanda em aberto — **o pagamento ainda precisa ser registrado na tela de Caixa**, igual a qualquer outro serviço.

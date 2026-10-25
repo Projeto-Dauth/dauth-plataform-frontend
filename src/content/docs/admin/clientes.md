@@ -31,6 +31,12 @@ Clique em qualquer linha da lista para abrir o painel de detalhes, com:
 - Últimos 5 agendamentos.
 - Se o cliente for mensalista, uma seção mostra a mensalidade pendente com opção de pagar.
 
-## 4. Ativar / Desativar
+## 4. Telefone e senha do cliente
+
+O telefone é o login da pessoa em todos os salões, por isso aparece só para leitura na ficha. Quem troca é a própria pessoa, em **Minha conta**, confirmando o número novo pelo WhatsApp.
+
+Para ajudar quem esqueceu a senha, use **Redefinir senha** na ficha: o cliente recebe um link no WhatsApp e cria a própria senha. A senha atual continua valendo até ele trocar, e você nunca vê nem define a senha dele.
+
+## 5. Ativar / Desativar
 
 O botão de ativar/desativar bloqueia o acesso do cliente ao sistema sem precisar excluir o cadastro.

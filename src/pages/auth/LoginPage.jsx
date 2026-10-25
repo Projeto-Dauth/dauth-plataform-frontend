@@ -170,6 +170,15 @@ export default function LoginPage() {
               Não tem conta? <span className="text-brand font-medium">Criar conta</span>
             </Link>
           </div>
+
+          <div className="flex justify-center gap-4 mt-3">
+            <Link to="/termos" className="text-[12px] text-ink-4 hover:text-ink-2 transition-colors">
+              Termos de Uso
+            </Link>
+            <Link to="/privacidade" className="text-[12px] text-ink-4 hover:text-ink-2 transition-colors">
+              Política de Privacidade
+            </Link>
+          </div>
         </div>
       </div>
     </div>

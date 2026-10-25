@@ -185,3 +185,11 @@ aside { scrollbar-width: none; }
 .docs-content td { @apply border-b border-line-2 px-3 py-2 text-ink-2; }
 .docs-content img { @apply rounded-xl border border-line my-3 max-w-full; }
 .docs-content code { @apply font-mono text-[12px] bg-surface-2 px-1.5 py-0.5 rounded; }
+
+/* Páginas legais (Termos e Privacidade): listas e tabelas */
+.prose-dauth ul { @apply list-disc pl-5 space-y-1.5; }
+.prose-dauth table { @apply w-full text-[13px] border-collapse border border-line rounded-md overflow-hidden; }
+.prose-dauth th { @apply text-left font-medium text-ink-3 bg-surface-2 border-b border-line px-3.5 py-2.5; }
+.prose-dauth td { @apply align-top border-b border-line-2 px-3.5 py-2.5 text-ink-2; }
+.prose-dauth tr:last-child td { @apply border-b-0; }
+.prose-dauth code { @apply font-mono text-[12px] bg-surface-2 px-1.5 py-0.5 rounded break-all; }

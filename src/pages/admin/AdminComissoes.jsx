@@ -359,9 +359,6 @@ function ModalPagarComissoes({ group, onClose, onConfirm, pagando }) {
               Confirmar repasse
             </Button>
           </div>
-          {!method && selecionados.length > 0 && (
-            <p className="text-[11px] text-ink-4 text-center mt-2">Selecione o método de pagamento para continuar</p>
-          )}
         </div>
       </div>
     </div>

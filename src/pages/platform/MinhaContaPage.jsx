@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
 import platformApi from '@/lib/platformApi'
+import { toStoreSalon } from '@/lib/salonAccess'
 import api from '@/lib/api'
 import { authClient } from '@/lib/authClient'
 import Icon from '@/components/ui/Icons'
@@ -11,6 +12,7 @@ import Chip from '@/components/ui/Chip'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import PhoneChangeField from '@/components/ui/PhoneChangeField'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { downloadJson } from '@/lib/download'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 const STATUS_OPTIONS = ['', 'pendente', 'confirmado', 'concluido', 'cancelado']
@@ -172,6 +174,20 @@ function TabPerfil({ profile, onSaved }) {
   const [name, setName] = useState(profile?.name ?? '')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const { data } = await platformApi.get('/platform/me/export')
+      downloadJson('meus-dados-dauth.json', data)
+      setMsg({ type: 'ok', text: 'Dados exportados.' })
+    } catch {
+      setMsg({ type: 'err', text: 'Erro ao exportar os dados. Tente novamente.' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -203,6 +219,14 @@ function TabPerfil({ profile, onSaved }) {
       <PhoneChangeField />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
         <SaveBtn loading={saving} />
+        <button type="button" onClick={handleExport} disabled={exporting}
+          style={{
+            height: 38, padding: '0 20px', borderRadius: 8, background: 'transparent',
+            color: '#8b4a2b', border: '1px solid rgba(139,74,43,0.3)', cursor: exporting ? 'default' : 'pointer',
+            fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif", opacity: exporting ? 0.6 : 1,
+          }}>
+          {exporting ? 'Exportando…' : 'Exportar meus dados'}
+        </button>
         {msg && <span style={{ fontSize: 12.5, color: msg.type === 'ok' ? '#4a6b3e' : '#8b3a32' }}>{msg.text}</span>}
       </div>
     </form>
@@ -355,7 +379,7 @@ export default function MinhaContaPage() {
 
   async function handleEnterSalon(member) {
     setSalon(
-      { id: member.salonId, name: member.salon.name, slug: member.salon.slug, plan: member.salon.plan, colorPalette: member.salon.colorPalette ?? null },
+      toStoreSalon(member.salon, member.salonId),
       member.role, member.id
     )
     try {

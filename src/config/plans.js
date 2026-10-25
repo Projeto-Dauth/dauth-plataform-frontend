@@ -42,6 +42,7 @@ export const FEATURE_LABEL = {
 // Path (sem leading /, igual navItems.js) → feature exigida. Espelha PATH_TO_MODULE/modules.js.
 export const NAV_ITEM_FEATURE = {
   'admin/combos': 'pacotes',
+  'profissional/combos': 'pacotes',
   'admin/produtos': 'produtos',
   'profissional/produtos': 'produtos',
   'admin/pedidos-produtos': 'produtos',

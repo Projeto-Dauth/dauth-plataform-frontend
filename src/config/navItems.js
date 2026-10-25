@@ -36,6 +36,7 @@ export const navItemsByRole = {
     { to: 'profissional/agendamentos', icon: 'receipt', label: 'Agendamentos' },
     { to: 'profissional/comandas', icon: 'tag', label: 'Comandas' },
     { type: 'label', label: 'Produtos' },
+    { to: 'profissional/combos', icon: 'package', label: 'Pacotes' },
     { to: 'profissional/produtos', icon: 'package', label: 'Produtos' },
     { to: 'profissional/pedidos-produtos', icon: 'cash', label: 'Pedidos de Produtos' },
     { type: 'label', label: 'Conta' },

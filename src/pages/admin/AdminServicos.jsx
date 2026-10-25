@@ -581,7 +581,7 @@ export default function AdminServicos() {
                   placeholder="Vazio = serviço sem assistente"
                   className={inputCls}
                 />
-                <p className="text-[11px] text-ink-3 mt-1">Percentual sugerido ao escolher uma assistente no agendamento (a assistente recebe este percentual além da comissão de quem faz o serviço). Vazio = o percentual é informado na hora. Dá para escolher assistente em qualquer serviço.</p>
+                <p className="text-[11px] text-ink-3 mt-1">Percentual sugerido ao escolher uma assistente, somado à comissão de quem faz o serviço. Vazio = informado na hora.</p>
               </Field>
               )}
               <div className="flex gap-2 mt-auto pt-4">

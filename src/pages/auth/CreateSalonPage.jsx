@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import Button from '@/components/ui/Button'
 import platformApi from '@/lib/platformApi'
+import { toStoreSalon } from '@/lib/salonAccess'
 import useSalonStore from '@/store/salonStore'
 import { useToast } from '@/context/ToastContext'
 import { PLANS, formatPlanPrice, TRIAL_MAX_PROFESSIONALS } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import Icon from '@/components/ui/Icons'
+import LegalNotice from '@/components/legal/LegalNotice'
 import { formatPhone } from '@/lib/phone'
 
 const PLAN_OPTIONS = [
@@ -48,7 +50,7 @@ export default function CreateSalonPage() {
     setApiError('')
     try {
       const { data: salon } = await platformApi.post('/salon', { name, phone, address, plan })
-      setSalon({ id: salon.id, name: salon.name, slug: salon.slug, plan: salon.plan, status: salon.status }, 'Admin', null)
+      setSalon(toStoreSalon(salon), 'Admin', null)
 
       // Plano pago escolhido: nunca entra em trial — precisa pagar antes de acessar o salão.
       // Abre o modal de pagamento aqui mesmo, sem navegar pra dentro do produto ainda.
@@ -136,6 +138,8 @@ export default function CreateSalonPage() {
             {apiError && (
               <div className="mb-4 px-3.5 py-2.5 rounded-md bg-danger-soft border border-danger/20 text-sm text-danger">{apiError}</div>
             )}
+
+            <LegalNotice className="mb-3" />
 
             <Button type="submit" variant="primary" className="w-full justify-center" disabled={isSubmitting}>
               {isSubmitting ? 'Criando…' : plan ? 'Criar salão e pagar' : 'Criar salão e entrar'}

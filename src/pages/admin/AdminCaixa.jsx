@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
+import HistoricoCliente from '@/components/ui/HistoricoCliente'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
 import PaymentMethodSplit from '@/components/ui/PaymentMethodSplit'
@@ -176,7 +177,7 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
       const match = tabs.find(isTargetTab)
       if (match) { setSelectedId(match.UUID); return }
     }
-    if (!selectedId) setSelectedId(tabs[0].UUID)
+    if (!selectedId && window.matchMedia('(min-width: 1024px)').matches) setSelectedId(tabs[0].UUID)
   }, [tabs])
 
   const filteredByStatus = statusFilter === 'Todos'
@@ -879,6 +880,14 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
               </div>
 
               <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
+                {selected.Status === 'Em aberto' && (
+                  <div className="pb-3 empty:hidden">
+                    <HistoricoCliente
+                      clientId={selected.Appointment?.ClientId ?? selected.Package?.ClientId}
+                      exclude={[{ group: selected.Booking_group, date: selected.Appointment?.Date, start: selected.Appointment?.Start_time }]}
+                    />
+                  </div>
+                )}
                 {selectedItems.length > 0 && (
                   <div className="pb-3.5 border-b border-dashed border-line-2 mb-1">
                     <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Itens</div>

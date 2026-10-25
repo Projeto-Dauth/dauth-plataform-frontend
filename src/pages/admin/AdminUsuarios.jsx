@@ -139,14 +139,13 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const [mensalistaModal, setMensalistaModal] = useState(false)
 
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ name: client.Name, phone: client.Phone ?? '', birthday: toDateInputValue(client.Birthday) })
+  const [editForm, setEditForm] = useState({ name: client.Name, birthday: toDateInputValue(client.Birthday) })
   const [editErrors, setEditErrors] = useState({})
   const [savingEdit, setSavingEdit] = useState(false)
 
   function validateEdit() {
     const errs = {}
     if (!editForm.name.trim()) errs.name = 'Nome é obrigatório'
-    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(editForm.phone)) errs.phone = 'Telefone inválido. Ex: (11) 9 9999-9999'
     return errs
   }
 
@@ -157,7 +156,6 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     try {
       await api.patch(`/users/${client.UUID}`, {
         Name: editForm.name.trim(),
-        Phone: editForm.phone,
         Birthday: editForm.birthday || null,
       })
       addToast('Cliente atualizado com sucesso', 'success')
@@ -204,8 +202,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   async function handleResetPassword() {
     setResetting(true)
     try {
-      await api.patch(`/users/${client.UUID}/reset-password`)
-      addToast(`Senha de ${client.Name} redefinida para 12345678`, 'success')
+      const { data } = await api.patch(`/users/${client.UUID}/reset-password`)
+      addToast(data.message, 'success')
       setConfirmReset(false)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao redefinir senha', 'error')
@@ -368,13 +366,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                 onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                 error={editErrors.name}
               />
-              <Input
-                label="Telefone"
-                placeholder="(11) 9 9999-9999"
-                value={editForm.phone}
-                onChange={(e) => setEditForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))}
-                error={editErrors.phone}
-              />
+              {/* O telefone é o login da pessoa em todos os salões: só ela troca (Minha conta → Perfil, com confirmação no WhatsApp) */}
+              <Input label="Telefone" aria-label="Telefone" value={client.Phone ?? ''} readOnly className="bg-surface-2 cursor-not-allowed" />
               <Input
                 label="Data de nascimento"
                 type="date"
@@ -616,8 +609,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         onClose={() => setConfirmReset(false)}
         onConfirm={handleResetPassword}
         title="Redefinir senha"
-        message={`A senha de ${client.Name} será redefinida para 12345678. No próximo login, será exigida a troca de senha.`}
-        confirmLabel="Redefinir"
+        message={`${client.Name} receberá um link no WhatsApp (${client.Phone}) para criar uma nova senha. A senha atual continua valendo até ela trocar.`}
+        confirmLabel="Enviar link"
         loading={resetting}
       />
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useParams, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import platformApi from '@/lib/platformApi'
-import { canEnterSalon, paywallReason } from '@/lib/salonAccess'
+import { canEnterSalon, paywallReason, toStoreSalon, isSalonCacheStale, refreshStoreSalon } from '@/lib/salonAccess'
 import PaywallScreen from '@/components/layout/PaywallScreen'
 import NotFound from '@/pages/NotFound'
 import api from '@/lib/api'
@@ -84,9 +84,8 @@ export default function SalonLayout() {
         navigate('/meus-saloes', { replace: true })
         return
       }
-      const samePayments = JSON.stringify(cur?.paymentMethods) === JSON.stringify(fresh?.paymentMethods)
-      if (!fresh || !cur || (cur.plan === fresh.plan && cur.status === fresh.status && cur.trialEndsAt === fresh.trialEndsAt && samePayments)) return
-      setSalon({ ...cur, plan: fresh.plan, status: fresh.status, trialEndsAt: fresh.trialEndsAt, paymentMethods: fresh.paymentMethods }, role, memberId)
+      if (!fresh || !cur || !isSalonCacheStale(cur, fresh)) return
+      setSalon(refreshStoreSalon(cur, fresh), role, memberId)
     }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [salonSlug])
@@ -103,7 +102,7 @@ export default function SalonLayout() {
           const match = (Array.isArray(data) ? data : []).find(m => m.salon?.slug === salonSlug && canEnterSalon(m))
           if (match) {
             setSalon(
-              { id: match.salonId, name: match.salon.name, slug: match.salon.slug, plan: match.salon.plan, status: match.salon.status, trialEndsAt: match.salon.trialEndsAt, colorPalette: match.salon.colorPalette ?? null, paymentMethods: match.salon.paymentMethods },
+              toStoreSalon(match.salon, match.salonId),
               match.role,
               match.id
             )
@@ -130,7 +129,7 @@ export default function SalonLayout() {
           // Membro não encontrado — tenta via API pública se for rota pública
           if (isPublicRoute) {
             return platformApi.get(`/platform/salons/${salonSlug}`)
-              .then(({ data: s }) => setSalon({ id: s.id, name: s.name, slug: s.slug, plan: s.plan, colorPalette: s.colorPalette ?? null }, null, null))
+              .then(({ data: s }) => setSalon(toStoreSalon(s), null, null))
               .catch(() => setNotFound(true))
           }
           setNotFound(true)
@@ -138,7 +137,7 @@ export default function SalonLayout() {
         .catch(() => {
           if (isPublicRoute) {
             platformApi.get(`/platform/salons/${salonSlug}`)
-              .then(({ data: s }) => setSalon({ id: s.id, name: s.name, slug: s.slug, plan: s.plan, colorPalette: s.colorPalette ?? null }, null, null))
+              .then(({ data: s }) => setSalon(toStoreSalon(s), null, null))
               .catch(() => setNotFound(true))
           } else {
             setNotFound(true)
@@ -147,7 +146,7 @@ export default function SalonLayout() {
         .finally(() => setLoading(false))
     } else if (isPublicRoute) {
       platformApi.get(`/platform/salons/${salonSlug}`)
-        .then(({ data: s }) => setSalon({ id: s.id, name: s.name, slug: s.slug, plan: s.plan, colorPalette: s.colorPalette ?? null }, null, null))
+        .then(({ data: s }) => setSalon(toStoreSalon(s), null, null))
         .catch(() => setNotFound(true))
         .finally(() => setLoading(false))
     } else {

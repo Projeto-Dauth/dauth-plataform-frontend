@@ -120,6 +120,11 @@ export default function DetalhesAgendamento() {
   const [editRecurring, setEditRecurring] = useState(false)
   const [editFrequency, setEditFrequency] = useState('semanal')
   const [editNotes, setEditNotes] = useState('')
+  // Agendamento concluído não abre a edição completa (data/serviços), mas a observação
+  // segue editável: a profissional anota depois do atendimento ("usou shampoo XYZ").
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesDraft, setNotesDraft] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [offHoursWarning, setOffHoursWarning] = useState(null)
   const [checkingHours, setCheckingHours] = useState(false)
@@ -484,6 +489,22 @@ export default function DetalhesAgendamento() {
       if (!it.isNew && it.itemId) removedExistingIdsRef.current.push(it.itemId)
       return prev.filter((_, i) => i !== index)
     })
+  }
+
+  async function handleSaveNotes() {
+    setSavingNotes(true)
+    try {
+      // '' (e não null) para limpar: o backend faz `Notes ?? current.Notes`, e null mantém o valor atual.
+      const notes = notesDraft.trim()
+      await api.patch(`/appointment/${id}`, { Notes: notes })
+      setItem(prev => ({ ...prev, Notes: notes || null }))
+      setEditingNotes(false)
+      addToast('Observação salva', 'success')
+    } catch (err) {
+      addToast(err.response?.data?.error ?? 'Erro ao salvar observação', 'error')
+    } finally {
+      setSavingNotes(false)
+    }
   }
 
   async function handleSaveEdit(skipOffHoursCheck = false) {
@@ -857,7 +878,40 @@ export default function DetalhesAgendamento() {
                   ) : '—'
                 }
               />
-              <InfoRow label="Observação" value={item.Notes} />
+              {canEdit && item.Status === 'concluido' ? (
+                <div className="flex items-start gap-4 py-3.5 border-b border-line-2 last:border-0">
+                  <div className="w-36 text-[12px] text-ink-3 font-medium shrink-0">Observação</div>
+                  {editingNotes ? (
+                    <div className="flex-1 min-w-0">
+                      <textarea
+                        value={notesDraft}
+                        onChange={e => setNotesDraft(e.target.value)}
+                        maxLength={1000}
+                        rows={3}
+                        placeholder="Ex: usou shampoo XYZ"
+                        className="w-full px-3 py-2 rounded-md border border-line bg-surface text-ink-2 text-[13px] placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditingNotes(false)}>Cancelar</Button>
+                        <Button variant="primary" size="sm" onClick={handleSaveNotes} loading={savingNotes}>Salvar</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
+                      <span className="text-[13.5px] text-ink-2 whitespace-pre-wrap">{item.Notes || '—'}</span>
+                      <button
+                        type="button"
+                        onClick={() => { setNotesDraft(item.Notes ?? ''); setEditingNotes(true) }}
+                        className="shrink-0 text-[12px] text-brand hover:underline cursor-pointer"
+                      >
+                        {item.Notes ? 'Editar' : 'Adicionar'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <InfoRow label="Observação" value={item.Notes} />
+              )}
               {canEdit && item.Status !== 'cancelado' && (!item.Tab?.UUID || item.Tab.Status === 'Em aberto') && (
                 <div className="py-3.5">
                   <Button variant="ghost" size="sm" onClick={openAddProduct}>

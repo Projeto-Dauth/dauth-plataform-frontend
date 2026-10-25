@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import platformApi from '@/lib/platformApi'
 import { PLANS, FEATURE_LABEL, formatPlanPrice, planRequiredFor } from '@/config/plans'
 
+// O servidor decide o que está sendo cobrado (config/billing.js#planCharge); a tela só explica
+const KIND_NOTE = {
+  first: 'Libera o salão por 30 dias.',
+  renewal: 'Renova a assinatura por mais 30 dias.',
+  upgrade: 'Muda para este plano agora e libera 30 dias a partir de hoje.',
+}
+
 // `lockPlan`: pula a etapa de escolha e já dispara o checkout com `defaultPlan` — usado
 // logo após criar o salão, quando o plano já foi decidido no formulário de criação.
 // `feature`: id da feature travada que abriu o modal (ex: 'produtos') — mostra qual plano a libera
@@ -18,16 +25,15 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState(false)
   const [timeLeft, setTimeLeft] = useState(null)
-  const pollRef = useRef(null)
   const timerRef = useRef(null)
   const startedRef = useRef(false)
-  const payingPlanRef = useRef(null) // plano da cobrança em andamento — o polling só confirma quando ele passa a valer
+  const onActivatedRef = useRef(onActivated) // o polling vive mais que um render: sempre chama a versão atual
+  onActivatedRef.current = onActivated
 
   const planInfo = PLANS.find(p => p.id === selectedPlan)
 
   function startCheckout(plan) {
     setStep('pay')
-    payingPlanRef.current = plan
     setError(null)
     setLoading(true)
     platformApi.post('/salon/checkout', { plan }, { headers: { 'x-salon-id': salonId } })
@@ -53,23 +59,23 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Polling: pergunta a cada 4s se ESTA cobrança foi paga. (Olhar o status do salão não serve: numa renovação
+  // ou upgrade o salão já está 'active' antes do pagamento.)
   useEffect(() => {
-    // Polling: verifica se o pagamento foi confirmado a cada 4s (independente do passo atual)
-    pollRef.current = setInterval(async () => {
+    if (!charge?.paymentId) return
+    const poll = setInterval(async () => {
       try {
-        const r = await platformApi.get('/salon', { headers: { 'x-salon-id': salonId } })
-        if (payingPlanRef.current && r.data?.status === 'active' && r.data?.plan === payingPlanRef.current) {
-          clearInterval(pollRef.current)
-          onActivated(payingPlanRef.current)
+        const r = await platformApi.get(`/salon/checkout/${charge.paymentId}`, { headers: { 'x-salon-id': salonId } })
+        if (r.data?.status === 'paid') {
+          clearInterval(poll)
+          onActivatedRef.current(charge.plan)
         }
       } catch {}
     }, 4000)
+    return () => clearInterval(poll)
+  }, [charge?.paymentId])
 
-    return () => {
-      clearInterval(pollRef.current)
-      clearTimeout(timerRef.current)
-    }
-  }, [])
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   function handleCopy() {
     if (!charge?.brCode) return
@@ -87,7 +93,6 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
 
   function backToPlans() {
     clearTimeout(timerRef.current)
-    payingPlanRef.current = null
     setCharge(null)
     setError(null)
     setStep('pick')
@@ -187,9 +192,16 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
         <h2 style={{ fontFamily: 'Inter, Georgia, serif', fontSize: 28, fontWeight: 600, color: 'rgb(var(--ink))', margin: '0 0 4px' }}>
           Plano {planInfo?.label}
         </h2>
-        <p style={{ fontSize: 24, fontWeight: 700, color: 'rgb(var(--ink))', marginBottom: 20, fontFamily: 'Inter, monospace' }}>
-          {formatPlanPrice(planInfo?.priceCents ?? 0)}<span style={{ fontSize: 14, fontWeight: 400, color: 'rgb(var(--ink-3))' }}>/mês</span>
+        <p style={{ fontSize: 24, fontWeight: 700, color: 'rgb(var(--ink))', marginBottom: charge ? 6 : 20, fontFamily: 'Inter, monospace' }}>
+          {formatPlanPrice(charge?.amount ?? planInfo?.priceCents ?? 0)}
+          {(!charge || charge.kind !== 'upgrade') && <span style={{ fontSize: 14, fontWeight: 400, color: 'rgb(var(--ink-3))' }}>/mês</span>}
         </p>
+        {charge && (
+          <p style={{ fontSize: 12.5, color: 'rgb(var(--ink-3))', margin: '0 0 20px', lineHeight: 1.5 }}>
+            {KIND_NOTE[charge.kind]}
+            {charge.creditCents > 0 && ` Já descontamos ${formatPlanPrice(charge.creditCents)} dos dias que sobraram do seu plano atual.`}
+          </p>
+        )}
 
         {loading ? (
           <div style={{ height: 220, borderRadius: 12, background: 'rgb(var(--ink) / 0.06)', animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -226,11 +238,16 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
             <p style={{ fontSize: 12, color: 'rgb(var(--ink-4))', textAlign: 'center', marginTop: 12 }}>
               Após o pagamento, a ativação é automática.
             </p>
+            {error && <p role="alert" style={{ fontSize: 12, color: '#8b3a32', textAlign: 'center', marginTop: 8 }}>{error}</p>}
 
             {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_SIMULATE === 'true') && (
               <button onClick={async () => {
-                const r = await platformApi.post('/salon/checkout/simulate', { chargeId: charge.id, plan: selectedPlan }, { headers: { 'x-salon-id': salonId } })
-                if (r.data?.ok) onActivated(selectedPlan)
+                try {
+                  const r = await platformApi.post('/salon/checkout/simulate', { paymentId: charge.paymentId }, { headers: { 'x-salon-id': salonId } })
+                  if (r.data?.ok) onActivated(charge.plan)
+                } catch (e) {
+                  setError(e.response?.data?.error || 'Erro ao simular o pagamento.')
+                }
               }} style={{
                 width: '100%', marginTop: 8, padding: '8px', borderRadius: 8, fontSize: 12,
                 fontFamily: 'Inter, monospace', cursor: 'pointer',
@@ -246,8 +263,8 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
             {error || 'Erro ao gerar cobrança. Tente novamente.'}
           </p>
         )}
-        {/* Na tela não há "fechar": volta para a lista para trocar de plano */}
-        {inline && !lockPlan && (
+        {/* Na tela não há "fechar": volta para a lista para trocar de plano (no modal, só quando deu erro) */}
+        {!lockPlan && (inline || (error && !charge)) && (
           <button onClick={backToPlans} style={{
             width: '100%', marginTop: 12, padding: '8px', background: 'none', border: 'none',
             fontSize: 13, color: 'rgb(var(--ink-3))', cursor: 'pointer', fontFamily: 'Inter, sans-serif',

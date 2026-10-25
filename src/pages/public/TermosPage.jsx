@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import logo from '@/logo-dauth-agendamentos.png'
+import ResponsibilityMatrix from '@/components/legal/ResponsibilityMatrix'
 
 export default function TermosPage() {
   return (
@@ -13,12 +14,12 @@ export default function TermosPage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-2xl mx-auto px-6 py-12">
+      <main className="max-w-4xl mx-auto px-6 py-12">
         <p className="text-[11px] font-mono text-ink-4 uppercase tracking-widest mb-3">Legal</p>
         <h1 className="font-display font-medium text-[32px] tracking-tight mb-2">
           Termos de Uso
         </h1>
-        <p className="text-[13px] text-ink-4 mb-10">Última atualização: maio de 2025</p>
+        <p className="text-[13px] text-ink-4 mb-10">Última atualização: outubro de 2026</p>
 
         <div className="prose-dauth">
 
@@ -43,6 +44,13 @@ export default function TermosPage() {
             </ul>
           </Section>
 
+          <Section title="Quem faz o quê (matriz de responsabilidades)">
+            <p>
+              A tabela abaixo resume o que é responsabilidade da Dauth e o que é responsabilidade do salão.
+            </p>
+            <ResponsibilityMatrix />
+          </Section>
+
           <Section title="Responsabilidades do salão (administrador)">
             <p>O salão que utiliza a plataforma é responsável por:</p>
             <ul>
@@ -64,15 +72,31 @@ export default function TermosPage() {
             </ul>
           </Section>
 
+          <Section title="Assinatura e pagamento">
+            <p>
+              O acesso do salão é por assinatura paga via PIX. Cada pagamento libera 30 dias de uso, somados ao
+              vencimento atual. Se o plano vencer sem renovação, o acesso é suspenso e os dados ficam guardados.
+            </p>
+            <p>
+              Ao cancelar o plano, o acesso continua até o fim do período já pago, sem reembolso, e o cancelamento
+              pode ser desfeito antes do vencimento. A cobrança não é automática: a renovação depende de um novo pagamento.
+            </p>
+          </Section>
+
           <Section title="Dados cadastrados na plataforma">
             <p>
               Os dados inseridos na plataforma (clientes, agendamentos, transações, serviços) são de
-              responsabilidade do salão que os cadastra. A Dauth Agendamentos atua como processadora
-              desses dados, conforme a LGPD.
+              responsabilidade do salão que os cadastra: o salão é o controlador e a Dauth Agendamentos atua como
+              operadora desses dados, conforme a LGPD. Os dados da conta e da assinatura do responsável pelo salão
+              são tratados pela Dauth como controladora.
             </p>
             <p>
-              Não compartilhamos dados de clientes com terceiros, exceto quando necessário para o
-              funcionamento do serviço (ex: envio de mensagens pelo WhatsApp via automação).
+              Não vendemos nem compartilhamos dados de clientes, exceto com os prestadores necessários para o
+              funcionamento do serviço (hospedagem, envio de WhatsApp e e-mail, pagamento PIX), listados na{' '}
+              <Link to="/privacidade" className="underline">Política de Privacidade</Link>.
+            </p>
+            <p>
+              O salão deve evitar registrar informações de saúde ou outros dados sensíveis nos campos de observação.
             </p>
           </Section>
 
@@ -120,7 +144,7 @@ export default function TermosPage() {
 
           <Section title="Contato">
             <p>
-              Em caso de dúvidas sobre estes termos, entre em contato diretamente com o salão pelo WhatsApp.
+              Dúvidas sobre estes termos: <strong>contato@dauth.com.br</strong>. Questões sobre um atendimento devem ser tratadas com o salão.
             </p>
           </Section>
 
@@ -128,7 +152,7 @@ export default function TermosPage() {
 
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-line flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <p className="text-[12px] text-ink-4">© 2025 Dauth Agendamentos. Todos os direitos reservados.</p>
+          <p className="text-[12px] text-ink-4">© 2026 Dauth Agendamentos. Todos os direitos reservados.</p>
           <div className="flex gap-4">
             <Link to="/privacidade" className="text-[12px] text-ink-3 hover:text-ink transition-colors">
               Política de Privacidade

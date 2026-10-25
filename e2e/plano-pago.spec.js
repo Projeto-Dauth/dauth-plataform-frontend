@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import prisma from './support/db.js'
 import { E2E_API_URL, E2E_WEBHOOK_SECRET } from '../../backend/e2e/testEnv.js'
 import { ABACATEPAY_PUBLIC_KEY } from '../../backend/src/config/abacatepay.js'
+import { createCharge, sendPaidWebhook } from './support/billing.js'
 
 // Fluxo: dono cria salão escolhendo um plano pago → o pagamento PIX abre na hora (sem trial) →
 // pagamento confirmado → salão ativo no plano e o dono entra no painel.
@@ -66,7 +67,8 @@ test('webhook do AbacatePay: falsificado é recusado; com segredo e assinatura c
   const salon = await res.json()
   expect(salon.status).toBe('pending_payment')
 
-  const body = JSON.stringify({ id: `evt_${Date.now()}`, event: 'pixQrCode.paid', data: { metadata: { salonId: salon.id, plan: 'business' } } })
+  const { body: charge } = await createCharge(page, salon.id, 'profissional')
+  const body = JSON.stringify({ id: `evt_${Date.now()}`, event: 'transparent.completed', data: { id: charge.id, metadata: { paymentId: charge.paymentId } } })
   const signature = crypto.createHmac('sha256', ABACATEPAY_PUBLIC_KEY).update(body).digest('base64')
   const send = (query, headers = {}) => page.request.post(`${E2E_API_URL}/api/v1/webhooks/abacatepay${query}`, {
     headers: { 'content-type': 'application/json', ...headers }, data: body,
@@ -80,5 +82,23 @@ test('webhook do AbacatePay: falsificado é recusado; com segredo e assinatura c
 
   expect((await send(`?webhookSecret=${E2E_WEBHOOK_SECRET}`, { 'x-webhook-signature': signature })).ok()).toBe(true)
   const after = await prisma.salon.findUnique({ where: { id: salon.id } })
-  expect({ status: after.status, plan: after.plan }).toEqual({ status: 'active', plan: 'business' })
+  expect({ status: after.status, plan: after.plan }).toEqual({ status: 'active', plan: 'profissional' })
+  expect(after.planEndsAt, 'primeiro pagamento libera 30 dias').not.toBeNull()
+})
+
+// Reenvio do mesmo evento (o AbacatePay reenvia) não paga nem estende nada duas vezes.
+test('webhook do AbacatePay: o mesmo evento reenviado não estende a assinatura', async ({ page }) => {
+  await loginAs(page, SEED_USERS.owner)
+  const res = await page.request.post(`${E2E_API_URL}/api/v1/salon`, { data: { name: `Salão Replay ${Date.now()}`, plan: 'essencial' } })
+  const salon = await res.json()
+  const { body: charge } = await createCharge(page, salon.id, 'essencial')
+
+  expect((await sendPaidWebhook(page, charge)).ok()).toBe(true)
+  const first = await prisma.salon.findUnique({ where: { id: salon.id } })
+  expect(first.status).toBe('active')
+
+  expect((await sendPaidWebhook(page, charge)).ok(), 'reenvio é aceito sem erro').toBe(true)
+  const second = await prisma.salon.findUnique({ where: { id: salon.id } })
+  expect(second.planEndsAt.getTime(), 'vencimento não muda').toBe(first.planEndsAt.getTime())
+  expect(await prisma.payment.count({ where: { salonId: salon.id, status: 'paid' } })).toBe(1)
 })

@@ -74,7 +74,8 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '280
   // vale como reserva se o papel ainda não carregou.
   const salonRole = useSalonStore(s => s.role)
   const menu = navItemsByRole[salonRole] ?? navItems
-  const visibleNavItems = menu.filter((item) => can(item.module, 'view'))
+  // Pacotes do Profissional só aparece se o Admin liberou em Configurações → Pagamentos
+  const visibleNavItems = menu.filter((item) => can(item.module, 'view') && (item.to !== 'profissional/combos' || salon?.professionalsSellPackages))
   const [upsellFeature, setUpsellFeature] = useState(null)
 
   // Prefixa todos os caminhos com /${salonSlug}/ e marca os itens travados pelo plano atual
