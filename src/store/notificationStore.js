@@ -1,12 +1,20 @@
 import { create } from 'zustand'
 import api from '@/lib/api'
+import useSalonStore from '@/store/salonStore'
+
+// O layout é montado em cada página: sem este intervalo mínimo, cada troca de página repetiria a busca.
+const MIN_INTERVAL_MS = 60_000
+let lastFetch = { key: null, at: 0 }
 
 const useNotificationStore = create((set, get) => ({
   unreadCount: 0,
   notifications: [],
   drawerOpen: false,
 
-  fetchUnreadCount: async () => {
+  fetchUnreadCount: async (force = false) => {
+    const key = useSalonStore.getState().salon?.id ?? null
+    if (!force && lastFetch.key === key && Date.now() - lastFetch.at < MIN_INTERVAL_MS) return
+    lastFetch = { key, at: Date.now() }
     try {
       const { data } = await api.get('/notification/unread-count')
       set({ unreadCount: data.count })

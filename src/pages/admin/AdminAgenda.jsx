@@ -15,7 +15,7 @@ import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
-import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { fetchTeam } from '@/lib/team'
 import { useTour } from '@/hooks/useTour'
 import { usePermission } from '@/hooks/usePermission'
 import { adminSteps } from '@/tours/adminTour'
@@ -1005,13 +1005,8 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
 
   // Candidatas a assistente: qualquer profissional (não só as que fazem o serviço).
   useEffect(() => {
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([p, a]) => setAssistantCandidates(
-        excludeMonitorAdmins([...(a.data.data ?? []), ...(p.data.data ?? [])]).map(u => ({ UUID: u.UUID, Name: u.Name }))
-      ))
+    fetchTeam()
+      .then(setAssistantCandidates)
       .catch(() => {})
   }, [])
 
@@ -1050,14 +1045,10 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         // impedindo trocar a profissional de um item recém-adicionado. Mesma lógica
         // de DetalhesAgendamento.jsx — as duas telas devem se comportar igual.
         setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingProfessionals: true } }))
-        Promise.all([
-          api.get('/users', { params: { Role: 'Profissional' } }),
-          api.get('/users', { params: { Role: 'Admin' } }),
-        ])
-          .then(([profRes, adminRes]) => {
+        fetchTeam()
+          .then((team) => {
             if (cancelled) return
-            const list = excludeMonitorAdmins([...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])])
-              .map(u => ({ professional_id: u.UUID, name: u.Name }))
+            const list = team.map(u => ({ professional_id: u.UUID, name: u.Name }))
             setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: list, loadingProfessionals: false } }))
           })
           .catch(() => {
@@ -1588,12 +1579,8 @@ export default function AdminAgenda() {
 
   // Carrega profissionais uma vez ao montar
   useEffect(() => {
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional' } }),
-      api.get('/users', { params: { Role: 'Admin' } }),
-    ])
-      .then(([profRes, adminRes]) => {
-        const list = excludeMonitorAdmins([...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])])
+    fetchTeam()
+      .then((list) => {
         professionalsRef.current = list
         setProfessionals(list)
       })
@@ -1614,16 +1601,15 @@ export default function AdminAgenda() {
     if (!silent) setLoading(true)
     try {
       const profs = professionalsRef.current
-      const [apptRes, ...leaveResults] = await Promise.all([
-        api.get('/appointment', { params: { date: toDateStr(date), limit: 50 } }),
-        ...profs.map(p =>
-          api.get(`/professional-leave/professional/${p.UUID}`, { params: { date: toDateStr(date) } })
-            .then(r => ({ uuid: p.UUID, leaves: (r.data.data ?? []).filter(l => l.Date === toDateStr(date)) }))
-            .catch(() => ({ uuid: p.UUID, leaves: [] }))
-        )
+      const dayStr = toDateStr(date)
+      const [apptRes, leaveRes] = await Promise.all([
+        api.get('/appointment', { params: { date: dayStr, limit: 500 } }),
+        // Folgas de toda a equipe numa busca só; falha nela não derruba a agenda
+        api.get('/professional-leave', { params: { date: dayStr } }).catch(() => null),
       ])
+      const leaves = leaveRes?.data?.data ?? []
       setAppointments(apptRes.data.data ?? [])
-      setLeaveByProf(Object.fromEntries(leaveResults.map(({ uuid, leaves }) => [uuid, leaves])))
+      setLeaveByProf(Object.fromEntries(profs.map(p => [p.UUID, leaves.filter(l => l.Professional_id === p.UUID && l.Date === dayStr)])))
     } catch {
       setAppointments([])
       setLeaveByProf({})

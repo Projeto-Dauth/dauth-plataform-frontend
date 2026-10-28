@@ -33,6 +33,20 @@ export function postAddService(tabId, serviceId, professionalId, confirmOverlap 
   })
 }
 
+// Lista de comandas para o Caixa/Comandas. `params`: status, from, to (AAAA-MM-DD) — o servidor devolve as
+// em aberto de qualquer data mais as do período. Percorre as páginas (o servidor limita a 500 por vez), para
+// nenhuma comanda sumir da tela em salão com histórico grande.
+const TABS_PAGE_SIZE = 500
+export async function fetchTabs(params = {}) {
+  const all = []
+  for (let page = 1; ; page++) {
+    const { data } = await api.get('/tab', { params: { ...params, page, limit: TABS_PAGE_SIZE } })
+    const rows = data.data ?? []
+    all.push(...rows)
+    if (rows.length < TABS_PAGE_SIZE || all.length >= (data.pagination?.total ?? 0)) return all
+  }
+}
+
 // Comanda não tem data própria — usa a data do agendamento quando existe (o caso comum);
 // comandas sem Appointment (combo, ou comanda combinada sem Appointment direto) caem no
 // Created_at da própria Tab, que é o fallback mais próximo do "quando essa comanda existiu".
@@ -40,7 +54,12 @@ export function tabDateStr(t) {
   return t.Appointment?.Date ?? t.Created_at?.slice(0, 10) ?? null
 }
 
-export function getPeriodRange(preset) {
+// Intervalo efetivo do filtro de período: o personalizado usa as datas digitadas, os demais o atalho.
+export function resolvePeriod(preset, customFrom, customTo) {
+  return preset === 'personalizado' ? { from: customFrom || null, to: customTo || null } : getPeriodRange(preset)
+}
+
+function getPeriodRange(preset) {
   if (preset === 'todos' || preset === 'personalizado') return { from: null, to: null }
 
   const today = new Date()

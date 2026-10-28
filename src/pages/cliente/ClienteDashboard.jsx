@@ -192,12 +192,10 @@ export default function ClienteDashboard() {
     if (!user?.id) return
     Promise.all([
       api.get(`/appointment/client/${user.id}`),
-      api.get('/users/perfil/me'),
       api.get(`/package/client/${user.id}`),
     ])
-      .then(([apptRes, perfilRes, combosRes]) => {
+      .then(([apptRes, combosRes]) => {
         setAppointments(apptRes.data.data ?? [])
-
         setCombos(combosRes.data.data ?? [])
       })
       .catch(() => {})

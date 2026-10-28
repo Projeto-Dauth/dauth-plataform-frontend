@@ -13,6 +13,7 @@ import MoneyValue from '@/components/ui/MoneyValue'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
+import { fetchTeam } from '@/lib/team'
 import { navItemsByRole } from '@/config/navItems'
 import { useTour } from '@/hooks/useTour'
 import { adminCaixaComissoesSteps } from '@/tours/adminCaixaComissoes'
@@ -529,8 +530,8 @@ export default function AdminComissoes() {
   const { restartTour } = useTour('admin_caixa_comissoes', adminCaixaComissoesSteps, !loading)
 
   useEffect(() => {
-    api.get('/users', { params: { Role: 'Profissional', limit: 100 } })
-      .then(res => setProfissionais(res.data.data ?? []))
+    fetchTeam()
+      .then(team => setProfissionais(team.filter(u => u.Role === 'Profissional')))
       .catch(() => setProfissionais([]))
   }, [])
 

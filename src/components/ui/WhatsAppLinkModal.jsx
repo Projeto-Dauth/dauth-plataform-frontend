@@ -32,7 +32,7 @@ export default function WhatsAppLinkModal({ onClose }) {
 
   useEffect(() => {
     fetchQr()
-    statusIntervalRef.current = setInterval(fetchStatus, STATUS_POLL_MS)
+    statusIntervalRef.current = setInterval(() => fetchStatus(true), STATUS_POLL_MS)
     qrIntervalRef.current = setInterval(() => {
       if (useWhatsappStatusStore.getState().status !== 'connected') fetchQr()
     }, QR_REFRESH_MS)

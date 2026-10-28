@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import CreditAndTrocoFields from '@/components/ui/CreditAndTrocoFields'
 import api from '@/lib/api'
+import { fetchTeam } from '@/lib/team'
 import HistoricoCliente from '@/components/ui/HistoricoCliente'
 import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
@@ -64,11 +65,8 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
     api.get('/product', { params: { limit: 100 } })
       .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
       .catch(() => {})
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([profRes, adminRes]) => setProfessionals([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]))
+    fetchTeam()
+      .then(setProfessionals)
       .catch(() => {})
   }, [])
 

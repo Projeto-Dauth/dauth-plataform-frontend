@@ -21,6 +21,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
+import { fetchTeam } from '@/lib/team'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
 import { usePagination } from '@/hooks/usePagination'
@@ -28,7 +29,7 @@ import { useTour } from '@/hooks/useTour'
 import { adminCaixaComandasSteps } from '@/tours/adminCaixaComandas'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate, formatTime, tabStatusLabel, tabStatusVariant } from '@/lib/format'
-import { STATUS_FILTERS, PERIOD_PRESETS, postAddService, tabDateStr, getPeriodRange, isFiadoTab, isPaga } from '@/lib/caixa'
+import { STATUS_FILTERS, PERIOD_PRESETS, postAddService, fetchTabs, tabDateStr, resolvePeriod, isFiadoTab, isPaga } from '@/lib/caixa'
 import { TabPaymentInfo } from '@/components/caixa/TabPaymentInfo'
 import { TabPedidosProdutos } from '@/components/caixa/TabPedidosProdutos'
 
@@ -96,6 +97,7 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
   const [periodPreset, setPeriodPreset] = useState('todos')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const { from: periodFrom, to: periodTo } = resolvePeriod(periodPreset, customFrom, customTo)
   const [search, setSearch] = useState('')
   const [onlyMensalista, setOnlyMensalista] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -150,11 +152,11 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const [{ data }, { data: accountsData }] = await Promise.all([
-        api.get('/tab', { params: { limit: 1000 } }),
+      const [tabsList, { data: accountsData }] = await Promise.all([
+        fetchTabs({ from: periodFrom || undefined, to: periodTo || undefined }),
         api.get('/tab/open-accounts'),
       ])
-      setTabs(data.data ?? [])
+      setTabs(tabsList)
       setOpenAccounts(accountsData.data ?? [])
     } catch {
       setTabs([])
@@ -162,7 +164,7 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [periodFrom, periodTo])
 
   useEffect(() => { load() }, [load])
 
@@ -187,13 +189,10 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
         return t.Status === statusFilter
       })
 
-  const { from: periodFrom, to: periodTo } = periodPreset === 'personalizado'
-    ? { from: customFrom || null, to: customTo || null }
-    : getPeriodRange(periodPreset)
-
   const filteredByPeriod = (!periodFrom && !periodTo)
     ? filteredByStatus
     : filteredByStatus.filter((t) => {
+        if (t.Status === 'Em aberto') return true // comanda em aberto aparece em qualquer período
         const d = tabDateStr(t)
         if (!d) return false
         if (periodFrom && d < periodFrom) return false
@@ -254,11 +253,8 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
 
   useEffect(() => {
     if (role !== 'Admin') return
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([a, b]) => setProfessionals([...(a.data.data ?? []), ...(b.data.data ?? [])]))
+    fetchTeam()
+      .then(setProfessionals)
       .catch(() => setProfessionals([]))
   }, [role])
 

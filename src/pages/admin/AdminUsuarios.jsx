@@ -25,6 +25,8 @@ import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { MODULES, SERVICE_ACCOUNT_MODULES } from '@/config/modules'
 import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { clearTeamCache } from '@/lib/team'
+import { fetchTabs } from '@/lib/caixa'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate, formatMonthYear } from '@/lib/format'
 import { formatPhone } from '@/lib/phone'
@@ -867,12 +869,11 @@ export default function AdminUsuarios() {
   // tabs: busca única, independente da paginação de usuários
   useEffect(() => {
     if (!can('Caixa', 'view')) return
-    api.get('/tab', { params: { limit: 1000 } })
-      .then(({ data }) => {
-        const tabs = data.data ?? []
+    fetchTabs({ status: 'Em aberto' })
+      .then((tabs) => {
         setOpenTabClientIds(new Set(
           tabs
-            .filter((t) => t.Status === 'Em aberto' && t.Appointment?.ClientId)
+            .filter((t) => t.Appointment?.ClientId)
             .map((t) => t.Appointment.ClientId)
         ))
       })
@@ -906,6 +907,7 @@ export default function AdminUsuarios() {
     setToggling(true)
     try {
       await api.patch(`/users/${toggleTarget.UUID}`, { active: !toggleTarget.active })
+      clearTeamCache()
       addToast(
         toggleTarget.active ? `${toggleTarget.Name} desativado` : `${toggleTarget.Name} ativado`,
         'success'

@@ -21,7 +21,7 @@ import { usePermission } from '@/hooks/usePermission'
 import api from '@/lib/api'
 
 import { navItemsByRole } from '@/config/navItems'
-import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { fetchTeam } from '@/lib/team'
 import { fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { formatDate } from '@/lib/format'
@@ -387,14 +387,10 @@ export default function DetalhesAgendamento() {
         // — senão o select de profissional fica travado até o serviço ser escolhido,
         // impedindo trocar a profissional de um item recém-adicionado.
         setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingProfessionals: true } }))
-        Promise.all([
-          api.get('/users', { params: { Role: 'Profissional' } }),
-          api.get('/users', { params: { Role: 'Admin' } }),
-        ])
-          .then(([profRes, adminRes]) => {
+        fetchTeam()
+          .then((team) => {
             if (cancelled) return
-            const list = excludeMonitorAdmins([...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])])
-              .map(u => ({ professional_id: u.UUID, name: u.Name }))
+            const list = team.map(u => ({ professional_id: u.UUID, name: u.Name }))
             setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: list, loadingProfessionals: false } }))
           })
           .catch(() => {
@@ -410,13 +406,8 @@ export default function DetalhesAgendamento() {
   // Candidatas a assistente: qualquer profissional (não só as que fazem o serviço).
   useEffect(() => {
     if (!editing || !canEdit) return
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([p, a]) => setAssistantCandidates(
-        excludeMonitorAdmins([...(a.data.data ?? []), ...(p.data.data ?? [])]).map(u => ({ UUID: u.UUID, Name: u.Name }))
-      ))
+    fetchTeam()
+      .then(setAssistantCandidates)
       .catch(() => {})
   }, [editing, canEdit])
 

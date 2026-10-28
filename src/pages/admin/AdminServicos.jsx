@@ -14,7 +14,7 @@ import { useRole } from '@/hooks/useRole'
 import { usePermission } from '@/hooks/usePermission'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
-import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { fetchTeam } from '@/lib/team'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatDuration, formatPrice } from '@/lib/format'
 
@@ -113,13 +113,8 @@ export default function AdminServicos() {
   useEffect(() => {
     loadServices()
     loadCategories()
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional' } }),
-      api.get('/users', { params: { Role: 'Admin' } }),
-    ])
-      .then(([profRes, adminRes]) => {
-        setAllProfessionals(excludeMonitorAdmins([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]))
-      })
+    fetchTeam()
+      .then(setAllProfessionals)
       .catch(() => {})
   }, [])
 

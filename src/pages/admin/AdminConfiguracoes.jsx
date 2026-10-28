@@ -323,7 +323,7 @@ export default function AdminConfiguracoes() {
   const fetchWaStatus = useWhatsappStatusStore(s => s.fetchStatus)
 
   useEffect(() => {
-    if (config?.evolutionInstanceName) fetchWaStatus()
+    if (config?.evolutionInstanceName) fetchWaStatus(true)
   }, [config?.evolutionInstanceName, fetchWaStatus])
 
   const handleCreateWhatsappInstance = async () => {
