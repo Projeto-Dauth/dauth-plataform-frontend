@@ -299,6 +299,11 @@ export default function AgendarPage() {
     }
   }
 
+  // Painel do papel atual no salão (Admin, Profissional ou cliente); sem papel conhecido não há para onde voltar
+  const panelPath = salonSlug && role
+    ? `/${salonSlug}/${role === 'Admin' ? 'admin' : role === 'Profissional' ? 'profissional' : 'cliente'}`
+    : null
+
   const dateLabel = selectedDay
     ? `${String(selectedDay).padStart(2, '0')}/${String(calMonth + 1).padStart(2, '0')}/${calYear}`
     : '—'
@@ -325,12 +330,19 @@ export default function AgendarPage() {
 
       {/* Top bar */}
       <div className="flex justify-between items-center px-4 md:px-10 py-4 md:py-[22px] border-b border-line bg-surface sticky top-0 z-10">
-        <div className="flex items-center gap-2.5">
-          <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
-          <div className="font-display font-semibold text-[15px] md:text-[17px]">Dauth Agendamentos</div>
+        <div className="flex items-center gap-2.5 md:gap-4">
+          <div className="flex items-center gap-2.5">
+            <img src={logo} alt="Dauth" className="w-11 h-11 rounded-lg object-cover shrink-0" />
+            <div className="font-display font-semibold text-[15px] md:text-[17px]">Dauth Agendamentos</div>
+          </div>
+          {isAuthenticated && panelPath && (
+            <Button variant="ghost" size="sm" onClick={() => navigate(panelPath)}>
+              <Icon name="arrowLeft" size={14} />Voltar ao painel
+            </Button>
+          )}
         </div>
         {isAuthenticated ? (
-          <div className="font-mono text-[11px] md:text-[12px] text-ink-3 truncate max-w-[140px] md:max-w-none">{user?.name}</div>
+          <div className="font-mono text-[11px] md:text-[12px] text-ink-3 truncate max-w-[100px] md:max-w-none">{user?.name}</div>
         ) : (
           <Link to="/login">
             <Button variant="ghost" size="sm">Entrar</Button>
@@ -758,10 +770,7 @@ export default function AgendarPage() {
               com {selectedProf?.name}
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <Button variant="primary" onClick={() => {
-                const area = role === 'Admin' ? 'admin' : role === 'Profissional' ? 'profissional' : 'cliente'
-                navigate(salonSlug ? `/${salonSlug}/${area}` : '/meus-saloes')
-              }}>Ver meus agendamentos</Button>
+              <Button variant="primary" onClick={() => navigate(panelPath ?? '/meus-saloes')}>Ver meus agendamentos</Button>
               <Button variant="ghost" onClick={() => navigate('/meus-saloes')}>Meus salões</Button>
             </div>
           </div>

@@ -9,6 +9,7 @@ import useSalonStore from './store/salonStore.js'
 import { authClient } from './lib/authClient.js'
 import api from './lib/api.js'
 import CookieBanner from './components/ui/CookieBanner.jsx'
+import SessionChangedDialog from './components/ui/SessionChangedDialog.jsx'
 
 async function bootstrap() {
   try {
@@ -78,6 +79,7 @@ async function bootstrap() {
       <ToastProvider>
         <RouterProvider router={router} />
         <CookieBanner />
+        <SessionChangedDialog />
       </ToastProvider>
     </React.StrictMode>
   )
