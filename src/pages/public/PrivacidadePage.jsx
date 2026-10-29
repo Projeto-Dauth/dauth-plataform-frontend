@@ -53,7 +53,7 @@ export default function PrivacidadePage() {
               <li><strong>Data de nascimento</strong> — para fins de identificação do perfil e aviso de aniversário, quando o salão o ativa.</li>
               <li><strong>Histórico de agendamentos</strong> — serviços agendados, datas, horários, status e observações escritas pelo salão ou por você.</li>
               <li><strong>Registros financeiros</strong> — transações, comandas, créditos e comissões geradas no salão (apenas administradores e profissionais autorizados têm acesso).</li>
-              <li><strong>Assinatura do salão</strong> — plano, datas de vencimento e histórico de pagamentos da mensalidade.</li>
+              <li><strong>Assinatura do salão</strong> — plano, datas de vencimento e histórico de pagamentos da assinatura.</li>
               <li><strong>Dados técnicos de acesso</strong> — endereço IP e navegador usados no login, para segurança e limite de tentativas.</li>
             </ul>
             <p>

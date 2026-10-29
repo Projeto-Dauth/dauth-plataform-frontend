@@ -1222,7 +1222,7 @@ export default function AdminUsuarios() {
 
               <div className="bg-surface-2 border border-line rounded-lg px-4 py-3">
                 <p className="text-[12px] text-ink-3 font-body">
-                  A senha inicial será <span className="font-mono font-medium text-ink-2">12345678</span>. O usuário poderá alterá-la após o primeiro acesso.
+                  A conta é criada sem senha conhecida. Para entrar no app, a pessoa usa "Esqueci a senha" com este telefone e recebe o link no WhatsApp.
                 </p>
               </div>
 

@@ -74,12 +74,19 @@ export default function TermosPage() {
 
           <Section title="Assinatura e pagamento">
             <p>
-              O acesso do salão é por assinatura paga via PIX. Cada pagamento libera 30 dias de uso, somados ao
-              vencimento atual. Se o plano vencer sem renovação, o acesso é suspenso e os dados ficam guardados.
+              O acesso do salão é por assinatura paga via PIX, contratada por 1, 3 ou 6 meses (o trimestral e o
+              semestral têm desconto). Cada mês da assinatura equivale a 30 dias, e cada pagamento soma o período
+              contratado ao vencimento atual. Se o plano vencer sem renovação, o acesso é suspenso e os dados ficam guardados.
             </p>
             <p>
-              Ao cancelar o plano, o acesso continua até o fim do período já pago, sem reembolso, e o cancelamento
-              pode ser desfeito antes do vencimento. A cobrança não é automática: a renovação depende de um novo pagamento.
+              A mudança para um plano superior pode ser feita a qualquer momento: paga-se apenas a diferença entre os
+              planos pelos dias que faltam, e o vencimento não muda. A mudança para um plano inferior só vale a partir
+              do vencimento.
+            </p>
+            <p>
+              <strong>Não há reembolso</strong> do valor pago, em nenhuma duração, nem em caso de cancelamento ou de
+              mudança de plano. Ao cancelar, o acesso continua até o fim do período já pago e o cancelamento pode ser
+              desfeito antes do vencimento. A cobrança não é automática: a renovação depende de um novo pagamento.
             </p>
           </Section>
 

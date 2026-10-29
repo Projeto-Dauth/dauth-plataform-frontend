@@ -1,25 +1,36 @@
 import { useState, useEffect, useRef } from 'react'
 import platformApi from '@/lib/platformApi'
-import { PLANS, FEATURE_LABEL, formatPlanPrice, planRequiredFor } from '@/config/plans'
+import { PLANS, FEATURE_LABEL, BILLING_OPTIONS, NO_REFUND_NOTICE, billingLabel, formatPlanPrice, planPrice, planRequiredFor } from '@/config/plans'
+import { formatDate } from '@/lib/format'
+
+const monthsText = (months) => (months === 1 ? '1 mês' : `${months} meses`)
 
 // O servidor decide o que está sendo cobrado (config/billing.js#planCharge); a tela só explica
-const KIND_NOTE = {
-  first: 'Libera o salão por 30 dias.',
-  renewal: 'Renova a assinatura por mais 30 dias.',
-  upgrade: 'Muda para este plano agora e libera 30 dias a partir de hoje.',
+function chargeNote(charge) {
+  if (charge.kind === 'upgrade') {
+    return `Muda para este plano agora. Você paga só a diferença pelos dias que faltam; o vencimento continua em ${formatDate(charge.coversUntil)}.`
+  }
+  const { savings } = planPrice(charge.plan, charge.months)
+  return `${billingLabel(charge.months)}: ${monthsText(charge.months)} de acesso, até ${formatDate(charge.coversUntil)}.`
+    + (savings > 0 ? ` Você economiza ${formatPlanPrice(savings)} em relação ao mensal.` : '')
 }
 
-// `lockPlan`: pula a etapa de escolha e já dispara o checkout com `defaultPlan` — usado
-// logo após criar o salão, quando o plano já foi decidido no formulário de criação.
+// `lockPlan`: plano fixo em `defaultPlan` (renovação, ou logo após criar o salão) — a escolha mostra só a duração.
+// `months`: com `lockPlan`, duração já decidida — pula a escolha e já gera o PIX (criação do salão).
+// `defaultMonths`: duração pré-selecionada (a que o salão contratou por último).
 // `feature`: id da feature travada que abriu o modal (ex: 'produtos') — mostra qual plano a libera
 // e destaca o item na lista de cada plano.
 // `inline`: mesmo conteúdo como tela (sem fundo escuro e sem fechar) — usado na tela de trial encerrado.
 // `title`/`subtitle`: substituem o título da escolha de plano.
-export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan = false, inline = false, title, subtitle, onClose, onActivated }) {
+export default function UpgradeModal({ salonId, defaultPlan, defaultMonths, months: fixedMonths, feature, lockPlan = false, inline = false, title, subtitle, onClose, onActivated }) {
   const featureLabel = feature ? FEATURE_LABEL[feature] : null
   const requiredPlan = feature ? planRequiredFor(feature) : null
-  const [step, setStep] = useState(lockPlan ? 'pay' : 'pick')
-  const [selectedPlan, setSelectedPlan] = useState(requiredPlan?.id || defaultPlan || 'essencial')
+  const autoStart = lockPlan && Boolean(fixedMonths)
+  const [step, setStep] = useState(autoStart ? 'pay' : 'pick')
+  const [selectedPlan, setSelectedPlan] = useState((!lockPlan && requiredPlan?.id) || defaultPlan || 'essencial')
+  const [months, setMonths] = useState(fixedMonths || defaultMonths || 1)
+  const monthsTouchedRef = useRef(false) // a pessoa já escolheu: a duração contratada (que chega depois) não sobrescreve
+  const [billing, setBilling] = useState(null) // assinatura atual: decide se o plano escolhido é upgrade
   const [loading, setLoading] = useState(false)
   const [charge, setCharge] = useState(null)
   const [error, setError] = useState(null)
@@ -32,11 +43,27 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
 
   const planInfo = PLANS.find(p => p.id === selectedPlan)
 
-  function startCheckout(plan) {
+  // Com o período pago em curso, um plano mais caro é upgrade: não escolhe duração (mantém o vencimento).
+  // Sem `defaultMonths`, a duração pré-selecionada é a que o salão contratou por último.
+  useEffect(() => {
+    if (autoStart) return
+    platformApi.get('/salon/billing', { headers: { 'x-salon-id': salonId } })
+      .then(r => {
+        setBilling(r.data)
+        if (!defaultMonths && !monthsTouchedRef.current && r.data.billingMonths) setMonths(r.data.billingMonths)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const inPeriod = billing?.status === 'active' && !billing.expired && new Date(billing.planEndsAt) > new Date()
+  const currentPlan = PLANS.find(p => p.id === billing?.plan)
+  const isUpgrade = inPeriod && Boolean(currentPlan) && (planInfo?.priceCents ?? 0) > currentPlan.priceCents
+
+  function startCheckout(plan, months) {
     setStep('pay')
     setError(null)
     setLoading(true)
-    platformApi.post('/salon/checkout', { plan }, { headers: { 'x-salon-id': salonId } })
+    platformApi.post('/salon/checkout', { plan, months }, { headers: { 'x-salon-id': salonId } })
       .then(r => {
         setCharge(r.data)
         const expiresAt = new Date(r.data.expiresAt)
@@ -52,9 +79,9 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
   }
 
   useEffect(() => {
-    if (lockPlan && !startedRef.current) {
+    if (autoStart && !startedRef.current) {
       startedRef.current = true
-      startCheckout(selectedPlan)
+      startCheckout(selectedPlan, months)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -101,7 +128,7 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
   const card = (
       <div style={{
         background: 'rgb(var(--surface))', borderRadius: 20, padding: '32px 28px',
-        maxWidth: 460, width: '100%', boxShadow: '0 24px 64px rgb(var(--ink) / 0.18)',
+        maxWidth: 540, width: '100%', boxShadow: '0 24px 64px rgb(var(--ink) / 0.18)',
         position: 'relative', ...(inline ? {} : { maxHeight: '92vh', overflowY: 'auto' }),
       }} onClick={e => e.stopPropagation()}>
 
@@ -123,7 +150,7 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
         {step === 'pick' ? (
           <>
             <h2 style={{ fontFamily: 'Inter, Georgia, serif', fontSize: 24, fontWeight: 600, color: 'rgb(var(--ink))', margin: '0 0 16px' }}>
-              {title ?? (featureLabel ? `${featureLabel} não está no seu plano` : 'Escolha seu plano')}
+              {title ?? (featureLabel ? `${featureLabel} não está no seu plano` : lockPlan ? `Plano ${planInfo?.label}` : 'Escolha seu plano')}
             </h2>
             {subtitle && (
               <p style={{ fontSize: 13, color: 'rgb(var(--ink-2))', margin: '-8px 0 16px', lineHeight: 1.5 }}>{subtitle}</p>
@@ -134,8 +161,40 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
                 Veja o que cada plano inclui:
               </p>
             )}
+            {isUpgrade ? (
+              <p style={{ fontSize: 12.5, color: 'rgb(var(--ink-2))', margin: '0 0 14px', lineHeight: 1.5, padding: '10px 12px', borderRadius: 10, background: 'rgb(var(--surface-2))' }}>
+                Upgrade: você paga só a diferença entre os planos pelos dias que faltam, e o vencimento continua em {formatDate(billing.planEndsAt)}.
+              </p>
+            ) : (
+              <>
+              {inPeriod && currentPlan?.id === selectedPlan && (
+                <p style={{ fontSize: 12.5, color: 'rgb(var(--ink-2))', margin: '0 0 12px', lineHeight: 1.5 }}>
+                  O novo período começa quando o atual termina, em {formatDate(billing.planEndsAt)}.
+                </p>
+              )}
+              <div role="radiogroup" aria-label="Duração do plano" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 14 }}>
+                {BILLING_OPTIONS.map(o => {
+                  const on = months === o.months
+                  return (
+                    <button key={o.months} type="button" role="radio" aria-checked={on} onClick={() => { monthsTouchedRef.current = true; setMonths(o.months) }} style={{
+                      padding: '8px 6px', borderRadius: 10, cursor: 'pointer', textAlign: 'center',
+                      border: on ? '2px solid rgb(var(--brand))' : '1.5px solid rgb(var(--line))',
+                      background: on ? 'rgb(var(--brand) / 0.06)' : 'transparent',
+                    }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgb(var(--ink))' }}>{o.label}</span>
+                      <span style={{ display: 'block', fontSize: 11, color: o.discount ? 'rgb(var(--brand))' : 'rgb(var(--ink-3))', fontWeight: o.discount ? 600 : 400 }}>
+                        {o.discount ? `${o.discount}% de desconto` : 'sem desconto'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              </>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {PLANS.map(p => (
+              {PLANS.filter(p => !lockPlan || p.id === selectedPlan).map(p => {
+                const price = planPrice(p.id, months)
+                return (
                 <button key={p.id} onClick={() => setSelectedPlan(p.id)} style={{
                   textAlign: 'left', padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
                   border: selectedPlan === p.id ? '2px solid rgb(var(--brand))' : '1.5px solid rgb(var(--line))',
@@ -143,11 +202,26 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
                   transition: 'all .15s',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontFamily: 'Inter, Georgia, serif', fontSize: 16, fontWeight: 600, color: 'rgb(var(--ink))' }}>{p.label}</span>
+                    <span style={{ fontFamily: 'Inter, Georgia, serif', fontSize: 16, fontWeight: 600, color: 'rgb(var(--ink))' }}>
+                      {p.label}
+                      {inPeriod && currentPlan?.id === p.id && (
+                        <span style={{
+                          marginLeft: 8, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, verticalAlign: 'middle',
+                          background: 'rgb(var(--brand) / 0.12)', color: 'rgb(var(--brand))',
+                        }}>
+                          Plano atual
+                        </span>
+                      )}
+                    </span>
                     <span style={{ fontFamily: 'Inter, monospace', fontSize: 15, fontWeight: 700, color: 'rgb(var(--ink))' }}>
-                      {formatPlanPrice(p.priceCents)}<span style={{ fontSize: 11, fontWeight: 400, color: 'rgb(var(--ink-3))' }}>/mês</span>
+                      {formatPlanPrice(price.perMonth)}<span style={{ fontSize: 11, fontWeight: 400, color: 'rgb(var(--ink-3))' }}>/mês</span>
                     </span>
                   </div>
+                  {months > 1 && !isUpgrade && (
+                    <p style={{ fontSize: 11.5, color: 'rgb(var(--ink-3))', marginTop: 2, textAlign: 'right' }}>
+                      {formatPlanPrice(price.total)} a cada {months} meses · economize {formatPlanPrice(price.savings)}
+                    </p>
+                  )}
                   {feature && (
                     <span style={{
                       display: 'inline-block', marginTop: 6, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999,
@@ -177,15 +251,17 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
                     <p style={{ fontSize: 12, color: 'rgb(var(--ink-3))', marginTop: 4 }}>{p.tagline}</p>
                   )}
                 </button>
-              ))}
+                )
+              })}
             </div>
-            <button onClick={() => startCheckout(selectedPlan)} style={{
+            <button onClick={() => startCheckout(selectedPlan, months)} style={{
               width: '100%', padding: '12px 16px', borderRadius: 10, fontSize: 14, fontWeight: 600,
               fontFamily: 'Inter, sans-serif', cursor: 'pointer', border: 'none',
               background: 'rgb(var(--brand))', color: '#fff',
             }}>
-              Continuar com {planInfo?.label}
+              {lockPlan ? 'Gerar PIX' : `Continuar com ${planInfo?.label}`}
             </button>
+            <p style={{ fontSize: 11.5, color: 'rgb(var(--ink-3))', textAlign: 'center', margin: '10px 0 0', lineHeight: 1.5 }}>{NO_REFUND_NOTICE}</p>
           </>
         ) : (
         <>
@@ -193,14 +269,13 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
           Plano {planInfo?.label}
         </h2>
         <p style={{ fontSize: 24, fontWeight: 700, color: 'rgb(var(--ink))', marginBottom: charge ? 6 : 20, fontFamily: 'Inter, monospace' }}>
-          {formatPlanPrice(charge?.amount ?? planInfo?.priceCents ?? 0)}
-          {(!charge || charge.kind !== 'upgrade') && <span style={{ fontSize: 14, fontWeight: 400, color: 'rgb(var(--ink-3))' }}>/mês</span>}
+          {formatPlanPrice(charge?.amount ?? planPrice(selectedPlan, months).total)}
+          {charge?.kind !== 'upgrade' && (
+            <span style={{ fontSize: 14, fontWeight: 400, color: 'rgb(var(--ink-3))' }}> · {monthsText(charge?.months ?? months)}</span>
+          )}
         </p>
         {charge && (
-          <p style={{ fontSize: 12.5, color: 'rgb(var(--ink-3))', margin: '0 0 20px', lineHeight: 1.5 }}>
-            {KIND_NOTE[charge.kind]}
-            {charge.creditCents > 0 && ` Já descontamos ${formatPlanPrice(charge.creditCents)} dos dias que sobraram do seu plano atual.`}
-          </p>
+          <p style={{ fontSize: 12.5, color: 'rgb(var(--ink-3))', margin: '0 0 20px', lineHeight: 1.5 }}>{chargeNote(charge)}</p>
         )}
 
         {loading ? (
@@ -238,6 +313,7 @@ export default function UpgradeModal({ salonId, defaultPlan, feature, lockPlan =
             <p style={{ fontSize: 12, color: 'rgb(var(--ink-4))', textAlign: 'center', marginTop: 12 }}>
               Após o pagamento, a ativação é automática.
             </p>
+            <p style={{ fontSize: 11.5, color: 'rgb(var(--ink-3))', textAlign: 'center', marginTop: 6, lineHeight: 1.5 }}>{NO_REFUND_NOTICE}</p>
             {error && <p role="alert" style={{ fontSize: 12, color: '#8b3a32', textAlign: 'center', marginTop: 8 }}>{error}</p>}
 
             {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_SIMULATE === 'true') && (

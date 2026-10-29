@@ -315,7 +315,8 @@ export default function AdminConfiguracoes() {
   const savedPaletteRef = useRef(salon?.colorPalette ?? 'terracota')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState(null)
-  const [renewing, setRenewing] = useState(false) // PIX de renovação: já vai direto para o plano atual
+  const [renewing, setRenewing] = useState(false) // renovação: plano fixo no atual, só escolhe a duração
+  const [renewMonths, setRenewMonths] = useState(null) // duração pré-selecionada ("Mudar duração"); null = a contratada
   const [billingVersion, setBillingVersion] = useState(0) // muda depois de um pagamento: o painel do plano busca de novo
   const [waCreating, setWaCreating] = useState(false)
   const [waModalOpen, setWaModalOpen] = useState(false)
@@ -352,9 +353,10 @@ export default function AdminConfiguracoes() {
     setConfig(c => c ? { ...c, status: b.status, plan: b.plan, planEndsAt: b.planEndsAt, cancelAtPeriodEnd: b.cancelAtPeriodEnd } : c)
   }, [])
 
-  const openPayment = ({ renew }) => {
+  const openPayment = ({ renew, months = null }) => {
     setUpgradeFeature(null)
     setRenewing(renew)
+    setRenewMonths(months)
     setShowUpgrade(true)
   }
 
@@ -420,6 +422,7 @@ export default function AdminConfiguracoes() {
       <UpgradeModal
         salonId={salonId}
         defaultPlan={config?.plan}
+        defaultMonths={renewMonths}
         feature={upgradeFeature}
         lockPlan={renewing}
         onClose={() => setShowUpgrade(false)}

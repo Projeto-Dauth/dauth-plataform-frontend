@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { E2E_API_URL } from '../../backend/e2e/testEnv.js'
 import { SEED_USERS, SEED_SALON_SLUG, loginAs } from './support/session.js'
 import { createOwner } from './support/accounts.js'
-import { createSalon } from './support/salon.js'
+import { createSalon, setPaidPlan } from './support/salon.js'
 import { newUserPage } from './support/browser.js'
 import { nextWeekday } from './support/dates.js'
 import { demoSalon, memberId, serviceId, apiPost } from './support/demo.js'
@@ -51,6 +51,7 @@ test.describe('Isolamento entre salões', () => {
     attacker = await newUserPage(browser)
     await createOwner(attacker)
     salonB = await createSalon(attacker)
+    await setPaidPlan(salonB.id) // cria pacote no próprio salão (trial = Essencial, sem pacotes)
   })
 
   const call = (method, path, salonId, data) =>

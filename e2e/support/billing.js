@@ -3,8 +3,8 @@ import { E2E_API_URL, E2E_WEBHOOK_SECRET } from '../../../backend/e2e/testEnv.js
 import { ABACATEPAY_PUBLIC_KEY } from '../../../backend/src/config/abacatepay.js'
 
 // Gera a cobrança PIX do salão pela API (o servidor decide valor e tipo). Devolve o JSON da cobrança.
-export async function createCharge(page, salonId, plan) {
-  const res = await page.request.post(`${E2E_API_URL}/api/v1/salon/checkout`, { headers: { 'x-salon-id': salonId }, data: { plan } })
+export async function createCharge(page, salonId, plan, months = 1) {
+  const res = await page.request.post(`${E2E_API_URL}/api/v1/salon/checkout`, { headers: { 'x-salon-id': salonId }, data: { plan, months } })
   return { status: res.status(), body: await res.json() }
 }
 

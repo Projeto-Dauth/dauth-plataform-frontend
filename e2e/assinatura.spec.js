@@ -9,10 +9,10 @@ const DAY = 86_400_000
 const inDays = (n) => new Date(Date.now() + n * DAY)
 
 // Salão do teste, já pago no plano e com o vencimento em `days` dias (preparado direto no banco).
-async function paidSalon(page, { plan = 'essencial', days = 20 } = {}) {
+async function paidSalon(page, { plan = 'essencial', days = 20, billingMonths = 1 } = {}) {
   await loginAs(page, SEED_USERS.owner)
   const salon = await createSalon(page)
-  await prisma.salon.update({ where: { id: salon.id }, data: { status: 'active', plan, planEndsAt: inDays(days), trialEndsAt: null } })
+  await prisma.salon.update({ where: { id: salon.id }, data: { status: 'active', plan, billingMonths, planEndsAt: inDays(days), trialEndsAt: null } })
   return salon
 }
 const salonOf = (id) => prisma.salon.findUnique({ where: { id } })
@@ -44,25 +44,70 @@ test('mensalidades sucessivas: cada pagamento soma 30 dias e o limite de adianta
   expect((await createCharge(page, salon.id, 'essencial')).status, 'passou do limite de adiantamento').toBe(400)
 })
 
-test('com mensalidades adiantadas (mais de 30 dias sobrando) o upgrade espera', async ({ page }) => {
-  const salon = await paidSalon(page, { days: 60 })
-  const up = await createCharge(page, salon.id, 'profissional')
-  expect(up.status).toBe(400)
-  expect(up.body.error).toMatch(/adiantadas/)
+test('trimestral e semestral: valor com desconto, soma 90/180 dias e a renovação sugere a mesma duração', async ({ page }) => {
+  const salon = await paidSalon(page, { days: 5 })
+  const start = (await salonOf(salon.id)).planEndsAt.getTime()
+
+  const { status, body } = await createCharge(page, salon.id, 'essencial', 3)
+  expect(status).toBe(200)
+  expect({ kind: body.kind, months: body.months, amount: body.amount }).toEqual({ kind: 'renewal', months: 3, amount: 21570 })
+  expect((await sendPaidWebhook(page, body)).ok()).toBe(true)
+  const after3 = await salonOf(salon.id)
+  expect(after3.planEndsAt.getTime(), '3 meses = 90 dias').toBe(start + 90 * DAY)
+  expect(after3.billingMonths).toBe(3)
+
+  const billing = await (await page.request.get(`${E2E_API_URL}/api/v1/salon/billing`, { headers: { 'x-salon-id': salon.id } })).json()
+  expect(billing.nextCharge, 'próximo pagamento na duração contratada').toMatchObject({ months: 3, amountCents: 21570 })
+
+  const six = await createCharge(page, salon.id, 'essencial', 6)
+  expect(six.body.amount).toBe(40740)
+  expect((await sendPaidWebhook(page, six.body)).ok()).toBe(true)
+  expect((await salonOf(salon.id)).planEndsAt.getTime(), '6 meses = 180 dias').toBe(start + 270 * DAY)
+
+  // 275 dias pagos + mais 180 passaria de 12 meses à frente
+  expect((await createCharge(page, salon.id, 'essencial', 6)).status, 'limite de 12 meses à frente').toBe(400)
+  expect((await createCharge(page, salon.id, 'essencial', 12)).status, 'só 1, 3 ou 6 meses').toBe(400)
 })
 
-test('Configurações → Plano mostra a próxima mensalidade e o histórico, e paga pela tela', async ({ page }) => {
+test('upgrade no plano semestral cobra só a diferença pelos dias que faltam e mantém o vencimento', async ({ page }) => {
+  const salon = await paidSalon(page, { plan: 'essencial', days: 120, billingMonths: 6 })
+  const end = (await salonOf(salon.id)).planEndsAt.getTime()
+  const { status, body } = await createCharge(page, salon.id, 'profissional')
+  expect(status).toBe(200)
+  expect(body.kind).toBe('upgrade')
+  // (R$ 101,90 - R$ 67,90) por mês do semestral x 4 meses = R$ 136,00
+  expect(body.amount).toBeGreaterThanOrEqual(13599)
+  expect(body.amount).toBeLessThanOrEqual(13600)
+
+  expect((await sendPaidWebhook(page, body)).ok()).toBe(true)
+  const s = await salonOf(salon.id)
+  expect({ plan: s.plan, billingMonths: s.billingMonths }).toEqual({ plan: 'profissional', billingMonths: 6 })
+  expect(s.planEndsAt.getTime(), 'vencimento não muda').toBe(end)
+
+  // A renovação depois do upgrade não é confundida com ele (não vira duplicidade)
+  const renew = await createCharge(page, salon.id, 'profissional', 3)
+  expect(renew.body.amount).toBe(32370)
+  expect((await sendPaidWebhook(page, renew.body)).ok()).toBe(true)
+  expect((await salonOf(salon.id)).planEndsAt.getTime()).toBe(end + 90 * DAY)
+  expect(await prisma.payment.count({ where: { salonId: salon.id, status: 'duplicate' } })).toBe(0)
+})
+
+test('Configurações → Plano mostra o próximo pagamento e o histórico, e paga pela tela escolhendo a duração', async ({ page }) => {
   const salon = await paidSalon(page, { days: 20 })
   await page.goto(`/${salon.slug}/admin/configuracoes?tab=plano`)
-  await expect(page.getByText(/Próxima mensalidade:/)).toBeVisible()
-  await page.getByRole('button', { name: 'Pagar próxima mensalidade' }).click()
+  await expect(page.getByText(/Próximo pagamento \(mensal\):/)).toBeVisible()
+  await expect(page.getByText(/Não há reembolso/)).toBeVisible()
+  await page.getByRole('button', { name: 'Pagar adiantado' }).click()
+  await page.getByRole('radio', { name: /Trimestral/ }).click()
+  await page.getByRole('button', { name: 'Gerar PIX' }).click()
   await expect(page.getByAltText('QR Code PIX')).toBeVisible()
+  await expect(page.getByText('R$ 215,70')).toBeVisible()
   await page.getByRole('button', { name: '[dev] Simular pagamento' }).click()
-  await expect(page.getByText(/Próxima mensalidade:/)).toBeVisible()
+  await expect(page.getByText(/Próximo pagamento \(trimestral\):/)).toBeVisible()
 
   // O histórico fica na própria aba, separado das informações do plano
   await page.getByRole('tab', { name: 'Histórico' }).click()
-  await expect(page.getByText(/Renovação · Essencial/)).toBeVisible()
+  await expect(page.getByText(/Renovação · Essencial · 3 meses/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cancelar plano' })).toHaveCount(0)
 })
 
@@ -106,20 +151,20 @@ test('duas cobranças da mesma mensalidade: a segunda paga vira duplicidade e n�
   expect((await salonOf(salon.id)).planEndsAt.getTime(), 'a duplicada não estende').toBe(paidEnd.getTime())
 })
 
-test('upgrade no meio do período desconta os dias não usados e abre novo ciclo de 30 dias', async ({ page }) => {
+test('upgrade no meio do período mensal cobra a diferença pelos dias que faltam e mantém o vencimento', async ({ page }) => {
   const salon = await paidSalon(page, { plan: 'essencial', days: 15 })
+  const end = (await salonOf(salon.id)).planEndsAt.getTime()
   const { status, body } = await createCharge(page, salon.id, 'profissional')
   expect(status).toBe(200)
   expect(body.kind).toBe('upgrade')
-  expect(body.creditCents).toBeGreaterThan(3000)
-  expect(body.amount + body.creditCents).toBe(11990)
+  // (R$ 119,90 - R$ 79,90) x 15/30 = R$ 20,00
+  expect(body.amount).toBeGreaterThanOrEqual(1999)
+  expect(body.amount).toBeLessThanOrEqual(2000)
 
   expect((await sendPaidWebhook(page, body)).ok()).toBe(true)
   const s = await salonOf(salon.id)
   expect(s.plan).toBe('profissional')
-  const days = (s.planEndsAt.getTime() - Date.now()) / DAY
-  expect(days).toBeGreaterThan(29.9)
-  expect(days).toBeLessThanOrEqual(30)
+  expect(s.planEndsAt.getTime(), 'vencimento não muda').toBe(end)
 
   const down = await createCharge(page, salon.id, 'essencial')
   expect(down.status, 'plano menor só depois de vencer').toBe(400)

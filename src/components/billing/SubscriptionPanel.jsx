@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import platformApi from '@/lib/platformApi'
 import { useToast } from '@/context/ToastContext'
-import { PLANS, formatPlanPrice } from '@/config/plans'
+import { PLANS, NO_REFUND_NOTICE, billingLabel, formatPlanPrice } from '@/config/plans'
 import { formatDate } from '@/lib/format'
 
 const PLAN_LABELS = Object.fromEntries(PLANS.map((p) => [p.id, p.label]))
@@ -86,6 +86,7 @@ export default function SubscriptionPanel({ salonId, config, refreshKey, onPay, 
       <div className="flex flex-wrap items-center gap-3.5">
         <span className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide ${isActive ? 'bg-gradient-to-br from-[#c9a57b] to-[#8b4a2b] text-white' : 'bg-ink/[0.07] text-ink'}`}>
           {plan ? (PLAN_LABELS[plan] ?? plan) : 'Trial'}
+          {isActive && ` · ${billingLabel(billing.billingMonths)}`}
         </span>
         <span className={`text-[13px] font-semibold ${statusLine.tone}`}>{statusLine.text}</span>
       </div>
@@ -93,14 +94,18 @@ export default function SubscriptionPanel({ salonId, config, refreshKey, onPay, 
       <div className="flex flex-col gap-3 border-t border-line-3 pt-5">
         {isActive && nextCharge && (
           <p className="text-[13px] text-ink-2">
-            Próxima mensalidade: <span className="font-semibold text-ink">{formatPlanPrice(nextCharge.amountCents)}</span>, cobre até {formatDate(nextCharge.coversUntil)}.
+            Próximo pagamento ({billingLabel(nextCharge.months).toLowerCase()}): <span className="font-semibold text-ink">{formatPlanPrice(nextCharge.amountCents)}</span>, cobre até {formatDate(nextCharge.coversUntil)}.
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          {isActive && nextCharge && <Button size="sm" onClick={() => onPay({ renew: true })}>{renewalOpen ? 'Renovar agora' : 'Pagar próxima mensalidade'}</Button>}
+          {isActive && nextCharge && <Button size="sm" onClick={() => onPay({ renew: true })}>{renewalOpen ? 'Renovar agora' : 'Pagar adiantado'}</Button>}
+          {isActive && nextCharge && billing.billingMonths < 6 && (
+            <Button size="sm" variant="outline" onClick={() => onPay({ renew: true, months: 6 })}>Mudar duração</Button>
+          )}
           {isActive && plan !== 'business' && <Button size="sm" variant="outline" onClick={() => onPay({ renew: false })}>Fazer upgrade</Button>}
           {!isActive && <Button size="sm" onClick={() => onPay({ renew: false })}>{expired ? 'Renovar assinatura' : 'Assinar'}</Button>}
         </div>
+        <p className="text-xs text-ink-3">{NO_REFUND_NOTICE}</p>
       </div>
 
       {isActive && cancelAtPeriodEnd && (
@@ -155,7 +160,10 @@ function PaymentHistory({ payments }) {
           const paid = p.status === 'paid'
           return (
             <li key={p.id} className={`flex flex-col gap-1 px-4 py-3 text-[13px] ${HISTORY_GRID}`}>
-              <span className="font-medium text-ink">{KIND_LABELS[p.kind] ?? p.kind} · {PLAN_LABELS[p.plan] ?? p.plan}</span>
+              <span className="font-medium text-ink">
+                {KIND_LABELS[p.kind] ?? p.kind} · {PLAN_LABELS[p.plan] ?? p.plan}
+                {p.kind !== 'upgrade' && p.months > 1 && ` · ${p.months} meses`}
+              </span>
               <span className="text-ink-2">
                 <span className="text-ink-3 md:hidden">{paid ? 'Pago em ' : 'Gerado em '}</span>
                 {formatDate(p.paidAt ?? p.createdAt)}

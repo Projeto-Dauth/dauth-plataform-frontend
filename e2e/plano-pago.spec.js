@@ -30,6 +30,31 @@ test('criar salão com plano pago abre o PIX e, pago, ativa o salão', async ({ 
   expect({ status: paid.status, plan: paid.plan }).toEqual({ status: 'active', plan: 'essencial' })
 })
 
+// Criar o salão escolhendo o plano semestral: o PIX sai com o total do semestral e libera 180 dias.
+test('criar salão no plano semestral cobra o total com desconto e libera 180 dias', async ({ page }) => {
+  await loginAs(page, SEED_USERS.owner)
+  const name = `Salão Semestral E2E ${Date.now()}`
+
+  await page.goto('/criar-salao')
+  await page.getByPlaceholder('Ex: Salão Bela Arte').fill(name)
+  await page.getByRole('button', { name: /^Essencial/ }).click()
+  await page.getByRole('radio', { name: /Semestral/ }).click()
+  await expect(page.getByText(/R\$ 407,40/)).toBeVisible()
+  await page.getByRole('button', { name: 'Criar salão e pagar' }).click()
+  await expect(page.getByAltText('QR Code PIX')).toBeVisible()
+  await expect(page.getByText(/Não há reembolso/).first()).toBeVisible()
+  await page.getByRole('button', { name: '[dev] Simular pagamento' }).click()
+  await expect(page.getByRole('link', { name: 'Agenda', exact: true })).toBeVisible()
+
+  const salon = await prisma.salon.findFirst({ where: { name } })
+  expect({ status: salon.status, plan: salon.plan, billingMonths: salon.billingMonths }).toEqual({ status: 'active', plan: 'essencial', billingMonths: 6 })
+  const days = (salon.planEndsAt.getTime() - Date.now()) / 86_400_000
+  expect(days).toBeGreaterThan(179.9)
+  expect(days).toBeLessThanOrEqual(180)
+  const payment = await prisma.payment.findFirst({ where: { salonId: salon.id, status: 'paid' } })
+  expect({ amountCents: payment.amountCents, months: payment.months }).toEqual({ amountCents: 40740, months: 6 })
+})
+
 // Fechar o PIX sem pagar: o salão fica aguardando pagamento e qualquer página dele vira a tela única
 // de planos (mesma do trial encerrado), com o plano escolhido na criação já selecionado.
 test('fechar o PIX sem pagar leva à tela de concluir pagamento; pago, o painel abre', async ({ page }) => {

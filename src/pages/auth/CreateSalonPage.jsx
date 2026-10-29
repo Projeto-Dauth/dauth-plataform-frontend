@@ -7,15 +7,16 @@ import platformApi from '@/lib/platformApi'
 import { toStoreSalon } from '@/lib/salonAccess'
 import useSalonStore from '@/store/salonStore'
 import { useToast } from '@/context/ToastContext'
-import { PLANS, formatPlanPrice, TRIAL_MAX_PROFESSIONALS } from '@/config/plans'
+import { PLANS, BILLING_OPTIONS, NO_REFUND_NOTICE, formatPlanPrice, planPrice, TRIAL_PLAN } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import Icon from '@/components/ui/Icons'
 import LegalNotice from '@/components/legal/LegalNotice'
 import { formatPhone } from '@/lib/phone'
 
-const PLAN_OPTIONS = [
+// Opções de plano com o preço (equivalente mensal) na duração escolhida
+const planOptions = (months) => [
   { id: null, label: 'Trial', tagline: '7 dias grátis, decidir depois' },
-  ...PLANS.map(p => ({ id: p.id, label: p.label, tagline: formatPlanPrice(p.priceCents) + '/mês' })),
+  ...PLANS.map(p => ({ id: p.id, label: p.label, tagline: formatPlanPrice(planPrice(p.id, months).perMonth) + '/mês' })),
 ]
 
 // Lista completa (não relativa) do que cada opção inclui. As listas de `features` dos planos são
@@ -24,13 +25,9 @@ const PLAN_OPTIONS = [
 const isMetaItem = (f) => f.startsWith('Tudo do') || f.startsWith('Até ') || f.startsWith('Sem limite')
 const ALL_ITEMS = [...new Set(PLANS.flatMap(p => p.features.filter(f => !isMetaItem(f))))]
 
+// Trial (planId null) inclui o mesmo que o plano Essencial
 function planDetails(planId) {
-  if (!planId) {
-    // Trial: tudo, exceto WhatsApp (TRIAL_BLOCKED_FEATURES) e suporte prioritário (exclusivo de plano pago)
-    const excluded = ['WhatsApp do salão', 'Suporte prioritário']
-    return { included: ALL_ITEMS.filter(f => !excluded.includes(f)), professionals: `Até ${TRIAL_MAX_PROFESSIONALS} profissionais` }
-  }
-  const idx = PLANS.findIndex(p => p.id === planId)
+  const idx = PLANS.findIndex(p => p.id === (planId ?? TRIAL_PLAN))
   const included = PLANS.slice(0, idx + 1).flatMap(p => p.features.filter(f => !isMetaItem(f)))
   const max = PLANS[idx].maxProfessionals
   return { included, professionals: max ? `Até ${max} profissionais` : 'Profissionais sem limite' }
@@ -39,6 +36,7 @@ function planDetails(planId) {
 export default function CreateSalonPage() {
   const [apiError, setApiError] = useState('')
   const [plan, setPlan] = useState(null)
+  const [months, setMonths] = useState(1)
   const [createdSalon, setCreatedSalon] = useState(null)
   const navigate = useNavigate()
   const setSalon = useSalonStore((s) => s.setSalon)
@@ -114,7 +112,7 @@ export default function CreateSalonPage() {
             <div className="flex flex-col gap-1.5 mb-6">
               <label className="text-xs text-ink-3 font-medium uppercase tracking-wider">Plano</label>
               <div className="grid grid-cols-2 gap-2">
-                {PLAN_OPTIONS.map(opt => (
+                {planOptions(months).map(opt => (
                   <button
                     key={opt.id ?? 'trial'}
                     type="button"
@@ -128,10 +126,31 @@ export default function CreateSalonPage() {
                   </button>
                 ))}
               </div>
+              {plan && (
+                <div role="radiogroup" aria-label="Duração do plano" className="grid grid-cols-3 gap-2 mt-1">
+                  {BILLING_OPTIONS.map(o => (
+                    <button
+                      key={o.months}
+                      type="button"
+                      role="radio"
+                      aria-checked={months === o.months}
+                      onClick={() => setMonths(o.months)}
+                      className={`px-2 py-2 rounded-md border text-center transition-colors ${
+                        months === o.months ? 'border-brand bg-brand/5' : 'border-line hover:border-ink-3'
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-ink">{o.label}</p>
+                      <p className={`text-[11px] ${o.discount ? 'text-brand font-semibold' : 'text-ink-3'}`}>
+                        {o.discount ? `${o.discount}% de desconto` : 'sem desconto'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="text-xs text-ink-4 mt-1">
                 {plan
-                  ? 'Escolher um plano pago pula o trial — o pagamento é feito na hora, logo depois de criar o salão.'
-                  : 'Trial dá 7 dias de acesso completo (exceto WhatsApp) pra decidir o plano com calma.'}
+                  ? `Escolher um plano pago pula o trial — o pagamento de ${formatPlanPrice(planPrice(plan, months).total)} é feito na hora, logo depois de criar o salão. ${NO_REFUND_NOTICE}`
+                  : 'O trial dá 7 dias grátis com os recursos do plano Essencial, pra decidir o plano com calma.'}
               </p>
             </div>
 
@@ -150,7 +169,7 @@ export default function CreateSalonPage() {
           </form>
         </div>
 
-        <PlanDetails planId={plan} />
+        <PlanDetails planId={plan} months={months} />
         </div>
       </div>
 
@@ -158,6 +177,7 @@ export default function CreateSalonPage() {
         <UpgradeModal
           salonId={createdSalon.id}
           defaultPlan={plan}
+          months={months}
           lockPlan
           onClose={() => navigate(`/${createdSalon.slug}/admin/configuracoes`, { replace: true })}
           onActivated={() => {
@@ -170,9 +190,9 @@ export default function CreateSalonPage() {
   )
 }
 
-function PlanDetails({ planId }) {
+function PlanDetails({ planId, months }) {
   const { included, professionals } = planDetails(planId)
-  const opt = PLAN_OPTIONS.find(o => o.id === planId)
+  const opt = planOptions(months).find(o => o.id === planId)
   return (
     <aside className="w-full lg:flex-1 lg:sticky lg:top-6 bg-surface border border-line rounded-lg p-6">
       <p className="text-xs text-ink-3 font-medium uppercase tracking-wider">O que está incluso</p>
