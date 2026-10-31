@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 import SalonLayout from '@/components/layout/SalonLayout'
@@ -61,12 +62,19 @@ import PrivacidadePage from '@/pages/public/PrivacidadePage'
 import TermosPage from '@/pages/public/TermosPage'
 import NaoAutorizado from '@/pages/NaoAutorizado'
 import NotFound from '@/pages/NotFound'
+import RouteError from '@/pages/RouteError'
+
+// Painel do sistema: só o criador (o backend decide); carregado sob demanda para não ir junto do app
+const SistemaPage = lazy(() => import('@/pages/sistema/SistemaPage'))
 
 const ALL = ['Admin', 'Profissional', 'Usuario', 'Servico']
 // Telas do Admin que a conta de serviço (notebook do salão) também usa, conforme os módulos dela
 const ADMIN_OR_SERVICE = ['Admin', 'Servico']
 
-const router = createBrowserRouter([
+const router = createBrowserRouter([{
+  // Componente que quebra cai aqui (e o erro vai para o log do sistema)
+  errorElement: <RouteError />,
+  children: [
   // ── Auth ──────────────────────────────────────────────────────
   { path: '/login',                   handle: { title: 'Entrar' }, element: <LoginPage /> },
   { path: '/register',                handle: { title: 'Criar conta' }, element: <RegisterPage /> },
@@ -149,8 +157,11 @@ const router = createBrowserRouter([
   // ── Raiz e erros ───────────────────────────────────────────────
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/nao-autorizado', handle: { title: 'Acesso negado' }, element: <NaoAutorizado /> },
+  // ── Painel do sistema (só o criador; para os outros, 404) ─────
+  { path: '/sistema', handle: { title: 'Sistema' }, element: <Suspense fallback={null}><SistemaPage /></Suspense> },
+
   { path: '*', handle: { title: 'Página não encontrada' }, element: <NotFound /> },
-])
+]}])
 
 // Título da aba: "Dauth | <título da rota>" (handle.title da rota mais específica), ou o nome do sistema.
 function applyDocumentTitle({ matches }) {
