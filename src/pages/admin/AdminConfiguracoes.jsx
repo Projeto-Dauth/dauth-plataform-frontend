@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, Children, isValidElement, cloneElement } from 'react'
+import { useState, useEffect, useRef, useCallback, isValidElement, cloneElement } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Icon from '@/components/ui/Icons'
@@ -12,6 +12,7 @@ import useSalonStore from '@/store/salonStore'
 import { refreshStoreSalon } from '@/lib/salonAccess'
 import { reloadStoreSalon } from '@/lib/subscription'
 import SubscriptionPanel from '@/components/billing/SubscriptionPanel'
+import Section, { sectionStyle } from '@/components/ui/SettingsSection'
 import { navItemsByRole } from '@/config/navItems'
 import { salonHasFeature, planRequiredFor } from '@/config/plans'
 import UpgradeModal from '@/components/ui/UpgradeModal'
@@ -141,31 +142,6 @@ function editableFromConfig(d) {
     },
     hourRows: toHourRows(d.businessHours),
   }
-}
-
-const sectionStyle = { background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }
-
-function Section({ title, description, children }) {
-  return (
-    <section style={sectionStyle}>
-      <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: description ? '0 0 6px' : '0 0 18px' }}>
-        {title}
-      </h2>
-      {description && <p style={{ fontSize: 13, color: 'rgb(var(--ink-3))', marginBottom: 18 }}>{description}</p>}
-      {/* Cada item separado por espaço + linha fina */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {Children.toArray(children).filter(Boolean).map((child, i, items) => (
-          <div key={i} style={{
-            paddingTop: i === 0 ? 0 : 20,
-            paddingBottom: i === items.length - 1 ? 0 : 20,
-            borderTop: i === 0 ? 'none' : '1px solid rgb(var(--line-2))',
-          }}>
-            {child}
-          </div>
-        ))}
-      </div>
-    </section>
-  )
 }
 
 function Switch({ checked, onChange, 'aria-label': ariaLabel }) {
@@ -316,7 +292,6 @@ export default function AdminConfiguracoes() {
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState(null)
   const [renewing, setRenewing] = useState(false) // renovação: plano fixo no atual, só escolhe a duração
-  const [renewMonths, setRenewMonths] = useState(null) // duração pré-selecionada ("Mudar duração"); null = a contratada
   const [billingVersion, setBillingVersion] = useState(0) // muda depois de um pagamento: o painel do plano busca de novo
   const [waCreating, setWaCreating] = useState(false)
   const [waModalOpen, setWaModalOpen] = useState(false)
@@ -353,10 +328,9 @@ export default function AdminConfiguracoes() {
     setConfig(c => c ? { ...c, status: b.status, plan: b.plan, planEndsAt: b.planEndsAt, cancelAtPeriodEnd: b.cancelAtPeriodEnd } : c)
   }, [])
 
-  const openPayment = ({ renew, months = null }) => {
+  const openPayment = ({ renew }) => {
     setUpgradeFeature(null)
     setRenewing(renew)
-    setRenewMonths(months)
     setShowUpgrade(true)
   }
 
@@ -422,7 +396,6 @@ export default function AdminConfiguracoes() {
       <UpgradeModal
         salonId={salonId}
         defaultPlan={config?.plan}
-        defaultMonths={renewMonths}
         feature={upgradeFeature}
         lockPlan={renewing}
         onClose={() => setShowUpgrade(false)}
@@ -430,7 +403,7 @@ export default function AdminConfiguracoes() {
       />
     )}
     <AppLayout sidebar={sidebar}>
-    <div style={{ padding: '32px 28px', maxWidth: 720, fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ padding: '32px 28px', maxWidth: 1040, fontFamily: 'Inter, sans-serif' }}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
         .cfg-input:focus { border-color: rgb(var(--brand)) !important; box-shadow: 0 0 0 3px rgb(var(--brand) / 0.12) }
@@ -484,7 +457,7 @@ export default function AdminConfiguracoes() {
         )}
 
         {/* ── Informações básicas ── */}
-        {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'geral' && <section style={sectionStyle}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 20px' }}>
             Informações do Salão
           </h2>
@@ -628,7 +601,7 @@ export default function AdminConfiguracoes() {
               <Switch checked={!!settings.professionalsSellPackages} onChange={v => setSetting('professionalsSellPackages', v)} />
             </SettingRow>
           </Section>
-          <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+          <section style={sectionStyle}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
             Preferências
           </h2>
@@ -679,7 +652,7 @@ export default function AdminConfiguracoes() {
         )}
 
         {/* ── WhatsApp do salão ── */}
-        {tab === 'whatsapp' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'whatsapp' && <section style={sectionStyle}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 6px' }}>
             WhatsApp do salão
           </h2>
@@ -763,7 +736,7 @@ export default function AdminConfiguracoes() {
         {waModalOpen && <WhatsAppLinkModal onClose={() => setWaModalOpen(false)} />}
 
         {/* ── Paleta de cores ── */}
-        {tab === 'geral' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
+        {tab === 'geral' && <section style={sectionStyle}>
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 6px' }}>
             Paleta de Cores
           </h2>
@@ -807,12 +780,7 @@ export default function AdminConfiguracoes() {
         </section>}
 
         {/* ── Plano ── */}
-        {tab === 'plano' && <section style={{ background: 'rgb(var(--surface))', borderRadius: 14, border: '1px solid rgb(var(--line))', padding: '24px 24px 20px', boxShadow: '0 2px 12px rgb(var(--ink) / 0.05)' }}>
-          <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgb(var(--brand))', margin: '0 0 18px' }}>
-            Informações do Plano
-          </h2>
-          <SubscriptionPanel salonId={salonId} config={config} refreshKey={billingVersion} onPay={openPayment} onBilling={handleBilling} />
-        </section>}
+        {tab === 'plano' && <SubscriptionPanel salonId={salonId} config={config} refreshKey={billingVersion} onPay={openPayment} onBilling={handleBilling} />}
 
         {/* ── Salvar ── */}
         {/* Barra fixa no rodapé: deixa claro que as alterações só valem depois de salvar */}

@@ -4,24 +4,21 @@ import Icon from '@/components/ui/Icons'
 import NotificationDrawer from '@/components/ui/NotificationDrawer'
 import RenewalNotice from '@/components/billing/RenewalNotice'
 import logo from '@/logo-dauth-agendamentos.png'
-import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
 import useNotificationStore from '@/store/notificationStore'
 import useWhatsappStatusStore from '@/store/whatsappStatusStore'
-import api from '@/lib/api'
+import { signOut } from '@/lib/signOut'
 
 export default function AppLayout({ sidebar, children }) {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { salonSlug } = useParams()
   const role = useRole()
-  const logout = useAuthStore((s) => s.logout)
   const { unreadCount, fetchUnreadCount, openDrawer } = useNotificationStore()
   const { status: whatsappStatus, fetchStatus: fetchWhatsappStatus } = useWhatsappStatusStore()
 
   async function handleLogout() {
-    try { await api.post('/auth/logout') } catch {}
-    logout()
+    await signOut()
     navigate('/login', { replace: true })
   }
 

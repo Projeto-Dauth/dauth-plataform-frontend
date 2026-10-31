@@ -130,7 +130,7 @@ export default function UpgradeModal({ salonId, defaultPlan, defaultMonths, mont
         background: 'rgb(var(--surface))', borderRadius: 20, padding: '32px 28px',
         maxWidth: 540, width: '100%', boxShadow: '0 24px 64px rgb(var(--ink) / 0.18)',
         position: 'relative', ...(inline ? {} : { maxHeight: '92vh', overflowY: 'auto' }),
-      }} onClick={e => e.stopPropagation()}>
+      }} className="scrollbar-hidden" onClick={e => e.stopPropagation()}>
 
         {/* Fechar */}
         {onClose && <button onClick={onClose} aria-label="Fechar" style={{

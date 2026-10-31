@@ -6,9 +6,10 @@ import platformApi from '@/lib/platformApi'
 import useAuthStore from '@/store/authStore'
 import logo from '@/logo-dauth-agendamentos.png'
 import { formatPhone } from '@/lib/phone'
+import { signOut } from '@/lib/signOut'
 
 // Link do convite para a equipe (/auth/accept-invite?token=). A conta não foi criada no convite:
-// - logado → Aceitar / Recusar;
+// - logado → Aceitar / Recusar, ou Trocar de conta (sai e o login volta para cá);
 // - não logado → "Já tenho conta" (login volta pra cá) ou "Criar conta" (só se o convite não é de uma conta específica).
 //   A conta criada aqui só ativa ao confirmar o telefone pelo WhatsApp; aí o convite é aceito sozinho.
 export default function AcceptInvitePage() {
@@ -48,6 +49,13 @@ export default function AcceptInvitePage() {
     } finally {
       setBusy(null)
     }
+  }
+
+  // Responder com outra conta: sai desta e abre o login, que volta para este convite
+  async function switchAccount() {
+    setBusy('switch')
+    await signOut()
+    navigate(loginUrl, { replace: true })
   }
 
   if (!token) return <Layout><Message text="O link de convite está incompleto. Peça ao salão que envie de novo." /></Layout>
@@ -90,6 +98,10 @@ export default function AcceptInvitePage() {
           <div className="flex flex-col gap-2">
             <Button onClick={() => respond('accept')} loading={busy === 'accept'} disabled={!!busy} className="w-full justify-center">Aceitar convite</Button>
             <Button variant="ghost" onClick={() => respond('decline')} loading={busy === 'decline'} disabled={!!busy} className="w-full justify-center">Recusar</Button>
+          </div>
+          <div className="mt-5 pt-4 border-t border-line-2 text-center">
+            <p className="text-[12px] text-ink-3 mb-2">Não é você, ou quer responder com outra conta?</p>
+            <Button variant="outline" onClick={switchAccount} loading={busy === 'switch'} disabled={!!busy} className="w-full justify-center">Trocar de conta</Button>
           </div>
         </Card>
       </Layout>

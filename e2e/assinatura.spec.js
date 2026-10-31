@@ -105,10 +105,8 @@ test('Configurações → Plano mostra o próximo pagamento e o histórico, e pa
   await page.getByRole('button', { name: '[dev] Simular pagamento' }).click()
   await expect(page.getByText(/Próximo pagamento \(trimestral\):/)).toBeVisible()
 
-  // O histórico fica na própria aba, separado das informações do plano
-  await page.getByRole('tab', { name: 'Histórico' }).click()
+  // Os pagamentos feitos aparecem na mesma tela, numa seção própria
   await expect(page.getByText(/Renovação · Essencial · 3 meses/)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Cancelar plano' })).toHaveCount(0)
 })
 
 test('cancelar plano avisa que o acesso acaba no fim do período e que voltar exige pagar outro plano', async ({ page }) => {
@@ -173,17 +171,17 @@ test('upgrade no meio do período mensal cobra a diferença pelos dias que falta
 test('cancelar plano mantém o acesso até o vencimento e dá para desfazer', async ({ page }) => {
   const salon = await paidSalon(page, { days: 12 })
   await page.goto(`/${salon.slug}/admin/configuracoes?tab=plano`)
-  await expect(page.getByText(/Ativo · vence em/)).toBeVisible()
+  await expect(page.getByText('Seu plano está ativo')).toBeVisible()
 
   await page.getByRole('button', { name: 'Cancelar plano' }).click()
   await page.getByRole('button', { name: 'Confirmar cancelamento' }).click()
-  await expect(page.getByText(/Cancelado · acesso até/)).toBeVisible()
+  await expect(page.getByText('Seu plano foi cancelado')).toBeVisible()
   const cancelled = await salonOf(salon.id)
   expect(cancelled.cancelAtPeriodEnd).toBe(true)
   expect(cancelled.status, 'segue ativo até o fim do período').toBe('active')
 
   await page.getByRole('button', { name: 'Desfazer cancelamento' }).click()
-  await expect(page.getByText(/Ativo · vence em/)).toBeVisible()
+  await expect(page.getByText('Seu plano está ativo')).toBeVisible()
   expect((await salonOf(salon.id)).cancelAtPeriodEnd).toBe(false)
 })
 

@@ -13,6 +13,7 @@ import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import PhoneChangeField from '@/components/ui/PhoneChangeField'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { downloadJson } from '@/lib/download'
+import { signOut } from '@/lib/signOut'
 
 const STATUS_LABELS = { pendente: 'Pendente', confirmado: 'Confirmado', concluido: 'Concluído', cancelado: 'Cancelado' }
 const STATUS_OPTIONS = ['', 'pendente', 'confirmado', 'concluido', 'cancelado']
@@ -348,7 +349,7 @@ function TabSeguranca() {
 // ── Main ────────────────────────────────────────────────────────────────────
 export default function MinhaContaPage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const setSalon = useSalonStore((s) => s.setSalon)
 
   const [profile, setProfile] = useState(null)
@@ -419,7 +420,7 @@ export default function MinhaContaPage() {
             onMouseEnter={e => e.target.style.color = '#2a1e18'} onMouseLeave={e => e.target.style.color = '#8b7267'}>
             Meus salões
           </Link>
-          <button onClick={() => { logout(); navigate('/login', { replace: true }) }}
+          <button onClick={async () => { await signOut(); navigate('/login', { replace: true }) }}
             style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#b09080', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px', borderRadius: 6, transition: 'color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.color = '#8b3a32'} onMouseLeave={e => e.currentTarget.style.color = '#b09080'}>
             <Icon name="logout" size={13} />

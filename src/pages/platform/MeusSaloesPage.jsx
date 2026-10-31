@@ -12,6 +12,7 @@ import Modal from '@/components/ui/Modal'
 import PendingInvitations from '@/components/ui/PendingInvitations'
 import SalonCard from '@/components/salon/SalonCard'
 import JoinByCodeModal, { JoinByCodeForm } from '@/components/salon/JoinByCodeModal'
+import { signOut } from '@/lib/signOut'
 
 function trialDaysLeft(trialEndsAt) {
   if (!trialEndsAt) return null
@@ -112,7 +113,7 @@ export default function MeusSaloesPage() {
   const [joinOpen, setJoinOpen] = useState(false)
   const navigate = useNavigate()
   const { addToast } = useToast()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const isOwner = user?.platformRole === 'SalonOwner'
 
   function load() {
@@ -201,7 +202,7 @@ export default function MeusSaloesPage() {
               <span className="text-sm text-ink-2 hidden sm:block">{user.name}</span>
             </Link>
           )}
-          <button onClick={() => { logout(); navigate('/login', { replace: true }) }} aria-label="Sair da conta"
+          <button onClick={async () => { await signOut(); navigate('/login', { replace: true }) }} aria-label="Sair da conta"
             className="flex items-center gap-1.5 text-xs text-ink-3 hover:text-danger transition-colors px-2 py-1.5 rounded-md hover:bg-danger-soft">
             <Icon name="logout" size={14} />
           </button>

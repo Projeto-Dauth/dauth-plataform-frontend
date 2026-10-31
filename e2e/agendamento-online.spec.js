@@ -58,6 +58,19 @@ test('confirmação automática: quem decide o status é o salão, não o client
   expect(await statusOf(auto)).toBe('confirmado')
 })
 
+test('agendamento recorrente: a próxima ocorrência segue a confirmação automática do salão', async ({ page }) => {
+  // Bug de 2026-10-31: com "Confirmar automaticamente" desligada, a 1ª ficava pendente e a próxima da série nascia confirmada
+  const s = await createBookingSalon(page, { bookingAutoConfirm: false })
+  const res = await page.request.post(`${E2E_API_URL}/api/appointment`, {
+    headers: { 'x-salon-id': s.salon.id },
+    data: { Client: s.joao, Professional: s.pro.id, Service: s.corte, Date: daysFromToday(3), Start_time: '09:00', End_time: '09:30', Recurring: true, Frequency: 'semanal' },
+  })
+  expect(res.status()).toBe(201)
+  const { recurringAppointmentId } = await prisma.appointment.findUnique({ where: { id: (await res.json()).UUID } })
+  const series = await prisma.appointment.findMany({ where: { recurringAppointmentId }, orderBy: { date: 'asc' } })
+  expect(series.map(a => a.status), 'esta e a próxima ocorrência').toEqual(['pendente', 'pendente'])
+})
+
 test('folga e dia sem expediente não aparecem no link público', async ({ page }) => {
   const s = await createBookingSalon(page)
   const [allDay, partial, off] = [daysFromToday(3), daysFromToday(4), daysFromToday(5)]
