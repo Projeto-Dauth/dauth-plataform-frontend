@@ -3,8 +3,6 @@ import { NavLink, useNavigate, useLocation, useParams } from 'react-router-dom'
 import logo from '@/logo-dauth-agendamentos.png'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
-import api from '@/lib/api'
-import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
 import useNotificationStore from '@/store/notificationStore'
 import { usePermission } from '@/hooks/usePermission'
@@ -12,6 +10,7 @@ import { NAV_ITEM_FEATURE, salonHasFeature, planRequiredFor } from '@/config/pla
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import { navItemsByRole } from '@/config/navItems'
 import SalonSwitcher from '@/components/layout/SalonSwitcher'
+import { signOut } from '@/lib/signOut'
 
 function NavGroup({ item, onClose }) {
   const location = useLocation()
@@ -63,7 +62,6 @@ const SCROLL_KEY = 'dauth_sidebar_scroll'
 
 export default function Sidebar({ navItems, footerUser, footerRole, width = '280px', onClose }) {
   const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
   const { unreadCount, openDrawer } = useNotificationStore()
   const { salon } = useSalonStore()
   const navScrollRef = useRef(null)
@@ -74,7 +72,8 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '280
   // vale como reserva se o papel ainda não carregou.
   const salonRole = useSalonStore(s => s.role)
   const menu = navItemsByRole[salonRole] ?? navItems
-  const visibleNavItems = menu.filter((item) => can(item.module, 'view'))
+  // Pacotes do Profissional só aparece se o Admin liberou em Configurações → Pagamentos
+  const visibleNavItems = menu.filter((item) => can(item.module, 'view') && (item.to !== 'profissional/combos' || salon?.professionalsSellPackages))
   const [upsellFeature, setUpsellFeature] = useState(null)
 
   // Prefixa todos os caminhos com /${salonSlug}/ e marca os itens travados pelo plano atual
@@ -102,8 +101,7 @@ export default function Sidebar({ navItems, footerUser, footerRole, width = '280
   }, [])
 
   async function handleLogout() {
-    try { await api.post('/auth/logout') } catch { }
-    logout()
+    await signOut()
     navigate('/login', { replace: true })
   }
 

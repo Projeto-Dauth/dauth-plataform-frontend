@@ -25,6 +25,8 @@ import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { MODULES, SERVICE_ACCOUNT_MODULES } from '@/config/modules'
 import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { clearTeamCache } from '@/lib/team'
+import { fetchTabs } from '@/lib/caixa'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate, formatMonthYear } from '@/lib/format'
 import { formatPhone } from '@/lib/phone'
@@ -139,14 +141,13 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   const [mensalistaModal, setMensalistaModal] = useState(false)
 
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ name: client.Name, phone: client.Phone ?? '', birthday: toDateInputValue(client.Birthday) })
+  const [editForm, setEditForm] = useState({ name: client.Name, birthday: toDateInputValue(client.Birthday) })
   const [editErrors, setEditErrors] = useState({})
   const [savingEdit, setSavingEdit] = useState(false)
 
   function validateEdit() {
     const errs = {}
     if (!editForm.name.trim()) errs.name = 'Nome é obrigatório'
-    if (!/^\(\d{2}\) \d \d{4}-\d{4}$/.test(editForm.phone)) errs.phone = 'Telefone inválido. Ex: (11) 9 9999-9999'
     return errs
   }
 
@@ -157,7 +158,6 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
     try {
       await api.patch(`/users/${client.UUID}`, {
         Name: editForm.name.trim(),
-        Phone: editForm.phone,
         Birthday: editForm.birthday || null,
       })
       addToast('Cliente atualizado com sucesso', 'success')
@@ -204,8 +204,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
   async function handleResetPassword() {
     setResetting(true)
     try {
-      await api.patch(`/users/${client.UUID}/reset-password`)
-      addToast(`Senha de ${client.Name} redefinida para 12345678`, 'success')
+      const { data } = await api.patch(`/users/${client.UUID}/reset-password`)
+      addToast(data.message, 'success')
       setConfirmReset(false)
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao redefinir senha', 'error')
@@ -368,13 +368,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
                 onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                 error={editErrors.name}
               />
-              <Input
-                label="Telefone"
-                placeholder="(11) 9 9999-9999"
-                value={editForm.phone}
-                onChange={(e) => setEditForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))}
-                error={editErrors.phone}
-              />
+              {/* O telefone é o login da pessoa em todos os salões: só ela troca (Minha conta → Perfil, com confirmação no WhatsApp) */}
+              <Input label="Telefone" aria-label="Telefone" value={client.Phone ?? ''} readOnly className="bg-surface-2 cursor-not-allowed" />
               <Input
                 label="Data de nascimento"
                 type="date"
@@ -616,8 +611,8 @@ function ClientePanel({ client, onClose, onReload, mensalistaData }) {
         onClose={() => setConfirmReset(false)}
         onConfirm={handleResetPassword}
         title="Redefinir senha"
-        message={`A senha de ${client.Name} será redefinida para 12345678. No próximo login, será exigida a troca de senha.`}
-        confirmLabel="Redefinir"
+        message={`${client.Name} receberá um link no WhatsApp (${client.Phone}) para criar uma nova senha. A senha atual continua valendo até ela trocar.`}
+        confirmLabel="Enviar link"
         loading={resetting}
       />
 
@@ -874,12 +869,11 @@ export default function AdminUsuarios() {
   // tabs: busca única, independente da paginação de usuários
   useEffect(() => {
     if (!can('Caixa', 'view')) return
-    api.get('/tab', { params: { limit: 1000 } })
-      .then(({ data }) => {
-        const tabs = data.data ?? []
+    fetchTabs({ status: 'Em aberto' })
+      .then((tabs) => {
         setOpenTabClientIds(new Set(
           tabs
-            .filter((t) => t.Status === 'Em aberto' && t.Appointment?.ClientId)
+            .filter((t) => t.Appointment?.ClientId)
             .map((t) => t.Appointment.ClientId)
         ))
       })
@@ -913,6 +907,7 @@ export default function AdminUsuarios() {
     setToggling(true)
     try {
       await api.patch(`/users/${toggleTarget.UUID}`, { active: !toggleTarget.active })
+      clearTeamCache()
       addToast(
         toggleTarget.active ? `${toggleTarget.Name} desativado` : `${toggleTarget.Name} ativado`,
         'success'
@@ -1227,7 +1222,7 @@ export default function AdminUsuarios() {
 
               <div className="bg-surface-2 border border-line rounded-lg px-4 py-3">
                 <p className="text-[12px] text-ink-3 font-body">
-                  A senha inicial será <span className="font-mono font-medium text-ink-2">12345678</span>. O usuário poderá alterá-la após o primeiro acesso.
+                  A conta é criada sem senha conhecida. Para entrar no app, a pessoa usa "Esqueci a senha" com este telefone e recebe o link no WhatsApp.
                 </p>
               </div>
 

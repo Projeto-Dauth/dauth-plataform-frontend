@@ -27,3 +27,17 @@ Thumbs.db
 test-results/
 playwright-report/
 demo-output/
+
+# Backups e arquivos temporários
+*.bak
+*.tmp
+*.orig
+
+# Config local do Claude Code
+.claude/
+
+# Vídeos dos Docs ficam no bucket R2, não no repositório
+*.mp4
+*.webm
+*.srt
+*.vtt

@@ -1,0 +1,9 @@
+e2e
+e2e-demo
+scripts
+docs
+playwright.config.js
+playwright.demo.config.js
+test-results
+playwright-report
+demo-output

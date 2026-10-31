@@ -1,0 +1,15 @@
+[
+  { "slug": "dashboard", "title": "Dashboard" },
+  { "slug": "agenda", "title": "Agenda" },
+  { "slug": "agendamentos", "title": "Agendamentos" },
+  { "slug": "clientes", "title": "Clientes" },
+  { "slug": "servicos", "title": "Serviços e Categorias" },
+  { "slug": "pacotes", "title": "Pacotes (Combos)" },
+  { "slug": "convidar-profissional", "title": "Convidar profissional" },
+  { "slug": "caixa", "title": "Caixa" },
+  { "slug": "comissoes", "title": "Comissões" },
+  { "slug": "produtos", "title": "Produtos e Pedidos" },
+  { "slug": "meus-servicos-horarios", "title": "Meus serviços e horários" },
+  { "slug": "notificacoes", "title": "Notificações" },
+  { "slug": "perfil", "title": "Meu perfil" }
+]

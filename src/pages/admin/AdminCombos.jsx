@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Navigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
@@ -12,14 +12,13 @@ import EmptyState from '@/components/ui/EmptyState'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
+import useSalonStore from '@/store/salonStore'
 import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
 import { navItemsByRole } from '@/config/navItems'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate } from '@/lib/format'
-
-const navItems = navItemsByRole['Admin']
 
 const EMPTY_PKG = { Name: '', Price: '', Available_until: '' }
 const EMPTY_DRAFT_ITEM = { service_id: '', quantity: 1, unit_price: '', commission_override: '' }
@@ -121,8 +120,13 @@ function PacotesVendidos() {
   )
 }
 
+// Tela do Admin; o Profissional usa a mesma (rota profissional/combos) quando o Admin liberou em
+// Configurações → Geral → Equipe: vê o catálogo ativo e vende, mas não cria/edita pacote.
 export default function AdminCombos() {
   const { user } = useAuthStore()
+  const role = useSalonStore((s) => s.role)
+  const salon = useSalonStore((s) => s.salon)
+  const isAdmin = role !== 'Profissional'
   const { addToast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const mainView = searchParams.get('view') === 'vendidos' ? 'vendidos' : 'catalogo'
@@ -451,10 +455,12 @@ export default function AdminCombos() {
   const currentPkg = packages.find((p) => p.UUID === itemsDrawer)
   const activePackages = packages.filter((p) => p.Active !== false)
   const inactivePackages = packages.filter((p) => p.Active === false)
-  const visiblePackages = pkgTab === 'ativos' ? activePackages : inactivePackages
+  const visiblePackages = (isAdmin && pkgTab === 'desativados') ? inactivePackages : activePackages
+
+  if (!isAdmin && !salon?.professionalsSellPackages) return <Navigate to={`/${salon?.slug}/profissional`} replace />
 
   const sidebar = (
-    <Sidebar navItems={navItems} footerUser={user?.name} footerRole="Admin">Admin</Sidebar>
+    <Sidebar navItems={navItemsByRole[role] ?? navItemsByRole.Admin} footerUser={user?.name} footerRole={role ?? 'Admin'}>{role ?? 'Admin'}</Sidebar>
   )
 
   return (
@@ -468,7 +474,7 @@ export default function AdminCombos() {
               : 'Quais clientes têm pacotes, quais pacotes e o status de cada um'}
           </p>
         </div>
-        {mainView === 'catalogo' && (
+        {mainView === 'catalogo' && isAdmin && (
           <Button size="sm" onClick={openCreate}>
             <Icon name="plus" size={14} />Novo pacote
           </Button>
@@ -487,7 +493,7 @@ export default function AdminCombos() {
 
       {mainView === 'vendidos' ? <PacotesVendidos /> : (
       <>
-      <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0 w-fit mb-5">
+      {isAdmin && <div className="flex items-center gap-1 p-1 bg-surface-2 border border-line rounded-xl shrink-0 w-fit mb-5">
         <button onClick={() => setPkgTab('ativos')}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors cursor-pointer ${
             pkgTab === 'ativos' ? 'bg-surface text-ink shadow-sm border border-line' : 'text-ink-3 hover:text-ink'
@@ -502,12 +508,12 @@ export default function AdminCombos() {
           Desativados
           <span className="ml-1.5 font-mono text-[10.5px]">{inactivePackages.length}</span>
         </button>
-      </div>
+      </div>}
 
       {loading ? <PageSpinner /> : visiblePackages.length === 0 ? (
         <EmptyState icon="package" title={pkgTab === 'ativos' ? 'Nenhum pacote ativo' : 'Nenhum pacote desativado'}
-          description={pkgTab === 'ativos' ? 'Crie o primeiro combo do salão.' : 'Pacotes desativados aparecem aqui.'}
-          action={pkgTab === 'ativos' ? openCreate : undefined} actionLabel={pkgTab === 'ativos' ? 'Novo pacote' : undefined} />
+          description={!isAdmin ? 'O Admin ainda não criou pacotes para vender.' : pkgTab === 'ativos' ? 'Crie o primeiro combo do salão.' : 'Pacotes desativados aparecem aqui.'}
+          action={isAdmin && pkgTab === 'ativos' ? openCreate : undefined} actionLabel={isAdmin && pkgTab === 'ativos' ? 'Novo pacote' : undefined} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visiblePackages.map((pkg) => (
@@ -544,6 +550,7 @@ export default function AdminCombos() {
                 <Button variant="primary" size="sm" className="flex-1 justify-center" disabled={pkg.Active === false} onClick={() => { setSellPkg(pkg); setSellClientId('') }}>
                   Vender
                 </Button>
+                {isAdmin && <>
                 <Button variant="ghost" size="sm" onClick={() => openItems(pkg)}>
                   <Icon name="plus" size={13} />
                 </Button>
@@ -556,12 +563,13 @@ export default function AdminCombos() {
                 <Button variant="ghost" size="sm" onClick={() => setDeletePkg(pkg)}>
                   <Icon name="trash" size={13} />
                 </Button>
+                </>}
               </div>
             </div>
           ))}
 
           {/* Card criar */}
-          {pkgTab === 'ativos' && (
+          {isAdmin && pkgTab === 'ativos' && (
             <button onClick={openCreate}
               className="border border-dashed border-line rounded-2xl flex flex-col items-center justify-center gap-2.5 min-h-[200px] text-ink-3 hover:border-ink-3 transition-colors cursor-pointer bg-transparent">
               <Icon name="plus" size={26} />
@@ -707,7 +715,7 @@ export default function AdminCombos() {
 
             {/* Indicador de soma — só relevante quando algum item define Valor por sessão */}
             {draftPkgItems.some((it) => it.unit_price !== null) && (
-              <ItemsSumIndicator items={draftPkgItems.map((it) => ({ Unit_price: it.unit_price, Quantity: it.quantity }))} packagePrice={currentPkg.Price} />
+              <ItemsSumIndicator items={draftPkgItems.map((it) => ({ Name: it.name, Unit_price: it.unit_price, Quantity: it.quantity }))} packagePrice={currentPkg.Price} />
             )}
 
             {/* Lista atual (rascunho) */}
@@ -896,8 +904,22 @@ function DraftItemsSumIndicator({ items, packagePrice }) {
   const matches = Math.abs(sum - price) <= 0.01
   return (
     <div className={`text-[11.5px] rounded-lg px-3 py-2 mb-1 ${matches ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'}`}>
+      <ItemsBreakdown items={items.map((it) => ({ name: it.name, unit: it.unit_price, qty: it.quantity }))} />
       Soma dos itens: <MoneyValue>{formatCurrency(sum)}</MoneyValue> / Preço do pacote: <MoneyValue>{formatCurrency(price)}</MoneyValue>
       {!matches && ' — ajuste antes de salvar.'}
+    </div>
+  )
+}
+
+// Uma linha por item: "Corte: 5 × R$ 70,00 = R$ 350,00" — deixa claro que o valor é por sessão.
+function ItemsBreakdown({ items }) {
+  return (
+    <div className="mb-1.5 pb-1.5 border-b border-current/20 flex flex-col gap-0.5">
+      {items.map((it, i) => (
+        <div key={i}>
+          {it.name}: {Number(it.qty)} × <MoneyValue>{formatCurrency(it.unit)}</MoneyValue> = <MoneyValue>{formatCurrency(Number(it.unit) * Number(it.qty))}</MoneyValue>
+        </div>
+      ))}
     </div>
   )
 }
@@ -915,6 +937,7 @@ function ItemsSumIndicator({ items, packagePrice }) {
   const matches = Math.abs(sum - Number(packagePrice)) <= 0.01
   return (
     <div className={`text-[11.5px] rounded-lg px-3 py-2 mb-4 ${matches ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'}`}>
+      <ItemsBreakdown items={items.map((it) => ({ name: it.Name, unit: it.Unit_price, qty: it.Quantity }))} />
       Soma dos itens: <MoneyValue>{formatCurrency(sum)}</MoneyValue> / Preço do pacote: <MoneyValue>{formatCurrency(packagePrice)}</MoneyValue>
       {!matches && ' — ajuste os valores antes de salvar.'}
     </div>

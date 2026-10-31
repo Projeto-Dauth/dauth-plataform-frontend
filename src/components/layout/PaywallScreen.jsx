@@ -1,12 +1,17 @@
 import { Link } from 'react-router-dom'
 import UpgradeModal from '@/components/ui/UpgradeModal'
 import useSalonStore from '@/store/salonStore'
+import { reloadStoreSalon } from '@/lib/subscription'
 
 // Textos por motivo do bloqueio (lib/salonAccess.js#paywallReason)
 const COPY = {
   trial_over: {
     title: 'Seu período de teste acabou',
     subtitle: (name) => `Para continuar usando o Dauth em ${name}, escolha um plano. Seus dados estão guardados e voltam assim que o pagamento for confirmado.`,
+  },
+  subscription_expired: {
+    title: 'Sua assinatura venceu',
+    subtitle: (name) => `Renove para voltar a usar o Dauth em ${name}. Seus dados estão guardados e voltam assim que o pagamento for confirmado.`,
   },
   pending_payment: {
     title: 'Conclua o pagamento para ativar seu salão',
@@ -15,10 +20,10 @@ const COPY = {
 }
 
 // Tela única no lugar de todo o produto enquanto o salão não pode ser usado sem pagar (SalonLayout):
-// trial encerrado ou plano pago ainda não pago. Admin escolhe o plano e paga aqui mesmo (mesmo
+// trial encerrado, assinatura vencida ou plano pago ainda não pago. Admin escolhe o plano e paga aqui mesmo (mesmo
 // seletor do upgrade); os demais só são avisados.
 export default function PaywallScreen({ reason }) {
-  const { salon, role, memberId, setSalon } = useSalonStore()
+  const { salon, role } = useSalonStore()
   const copy = COPY[reason]
   const backTo = { to: '/meus-saloes', label: 'Voltar para Meus salões' }
 
@@ -31,7 +36,7 @@ export default function PaywallScreen({ reason }) {
           defaultPlan={salon.plan ?? 'essencial'}
           title={copy.title}
           subtitle={copy.subtitle(salon.name)}
-          onActivated={(plan) => setSalon({ ...salon, status: 'active', plan: plan ?? salon.plan }, role, memberId)}
+          onActivated={() => reloadStoreSalon().catch(() => window.location.reload())}
         />
       ) : (
         <div className="bg-surface border border-line rounded-[20px] p-8 max-w-[460px] w-full text-center">

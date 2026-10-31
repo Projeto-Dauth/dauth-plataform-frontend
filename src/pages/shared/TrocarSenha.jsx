@@ -105,12 +105,6 @@ export default function TrocarSenha() {
               : 'Informe a senha atual e escolha uma nova'}
           </p>
         </div>
-        {isFirstAccess && (
-          <div className="mb-5 px-4 py-3 bg-warning-soft border border-warning/30 rounded-lg text-[13px] text-ink-2">
-            A senha padrão é <span className="font-mono font-semibold">12345678</span>. Troque agora para proteger sua conta.
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="bg-surface border border-line rounded-xl p-6">
           <PasswordInput
             label="Senha atual"

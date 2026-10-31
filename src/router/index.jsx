@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 import SalonLayout from '@/components/layout/SalonLayout'
@@ -53,6 +54,7 @@ import MinhasComandas from '@/pages/cliente/MinhasComandas'
 import MeuPerfil from '@/pages/shared/MeuPerfil'
 import TrocarSenha from '@/pages/shared/TrocarSenha'
 import DetalhesAgendamento from '@/pages/shared/DetalhesAgendamento'
+import DocsPage from '@/pages/shared/DocsPage'
 
 // Público
 import AgendarPage from '@/pages/public/AgendarPage'
@@ -60,12 +62,19 @@ import PrivacidadePage from '@/pages/public/PrivacidadePage'
 import TermosPage from '@/pages/public/TermosPage'
 import NaoAutorizado from '@/pages/NaoAutorizado'
 import NotFound from '@/pages/NotFound'
+import RouteError from '@/pages/RouteError'
+
+// Painel do sistema: só o criador (o backend decide); carregado sob demanda para não ir junto do app
+const SistemaPage = lazy(() => import('@/pages/sistema/SistemaPage'))
 
 const ALL = ['Admin', 'Profissional', 'Usuario', 'Servico']
 // Telas do Admin que a conta de serviço (notebook do salão) também usa, conforme os módulos dela
 const ADMIN_OR_SERVICE = ['Admin', 'Servico']
 
-const router = createBrowserRouter([
+const router = createBrowserRouter([{
+  // Componente que quebra cai aqui (e o erro vai para o log do sistema)
+  errorElement: <RouteError />,
+  children: [
   // ── Auth ──────────────────────────────────────────────────────
   { path: '/login',                   handle: { title: 'Entrar' }, element: <LoginPage /> },
   { path: '/register',                handle: { title: 'Criar conta' }, element: <RegisterPage /> },
@@ -107,6 +116,7 @@ const router = createBrowserRouter([
       { path: 'trocar-senha',        handle: { title: 'Trocar senha' }, element: <ProtectedRoute allowedRoles={ALL}><TrocarSenha /></ProtectedRoute> },
       { path: 'agendamento/:id',     handle: { title: 'Agendamento' }, element: <ProtectedRoute allowedRoles={ALL}><DetalhesAgendamento /></ProtectedRoute> },
       { path: 'agendar',             handle: { title: 'Agendar' }, element: <AgendarPage /> },
+      { path: 'docs',                handle: { title: 'Documentação' }, element: <ProtectedRoute allowedRoles={['Admin', 'Profissional']}><DocsPage /></ProtectedRoute> },
 
       // Admin
       { path: 'admin',                         handle: { title: 'Agenda' }, element: <ProtectedRoute allowedRoles={ADMIN_OR_SERVICE} requiredModule={NAV_ITEM_MODULE['admin']}><AdminAgenda /></ProtectedRoute> },
@@ -132,6 +142,7 @@ const router = createBrowserRouter([
       { path: 'profissional/servicos',         handle: { title: 'Meus serviços' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']}><ProfissionalServicos /></ProtectedRoute> },
       { path: 'profissional/comissoes',        handle: { title: 'Minhas comissões' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comissoes']}><ProfissionalComissoes /></ProtectedRoute> },
       { path: 'profissional/comandas',         handle: { title: 'Comandas' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/comandas']}><ProfissionalComandas /></ProtectedRoute> },
+      { path: 'profissional/combos',          handle: { title: 'Pacotes' }, element: <ProtectedRoute allowedRoles={['Profissional']} requiredModule={NAV_ITEM_MODULE['profissional/combos']}><AdminCombos /></ProtectedRoute> },
       { path: 'profissional/produtos',         handle: { title: 'Produtos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/produtos']}><ProfissionalProdutos /></ProtectedRoute> },
       { path: 'profissional/pedidos-produtos', handle: { title: 'Pedidos de produtos' }, element: <ProtectedRoute allowedRoles={['Profissional', 'Admin']} requiredModule={NAV_ITEM_MODULE['profissional/pedidos-produtos']}><ProfissionalPedidosProdutos /></ProtectedRoute> },
 
@@ -146,8 +157,11 @@ const router = createBrowserRouter([
   // ── Raiz e erros ───────────────────────────────────────────────
   { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/nao-autorizado', handle: { title: 'Acesso negado' }, element: <NaoAutorizado /> },
+  // ── Painel do sistema (só o criador; para os outros, 404) ─────
+  { path: '/sistema', handle: { title: 'Sistema' }, element: <Suspense fallback={null}><SistemaPage /></Suspense> },
+
   { path: '*', handle: { title: 'Página não encontrada' }, element: <NotFound /> },
-])
+]}])
 
 // Título da aba: "Dauth | <título da rota>" (handle.title da rota mais específica), ou o nome do sistema.
 function applyDocumentTitle({ matches }) {

@@ -8,7 +8,7 @@ export const adminUsuariosSteps = [
   {
     id: 'cadastrar',
     title: 'Cadastrar novo usuário',
-    text: 'Clique em "Novo usuário" para cadastrar um cliente ou profissional diretamente pelo Admin. A senha padrão é 12345678.',
+    text: 'Clique em "Novo usuário" para cadastrar um cliente ou profissional diretamente pelo Admin.',
     attachTo: { element: '[data-tour="usuarios-novo"]', on: 'left' },
   },
   {

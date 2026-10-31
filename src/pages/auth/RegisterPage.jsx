@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import platformApi from '@/lib/platformApi'
 import { formatPhone } from '@/lib/phone'
+import LegalNotice from '@/components/legal/LegalNotice'
 
 const ROLES = [
   { value: 'SalonOwner', label: 'Dono de salão', desc: 'Gerencie salões, equipe e agenda' },
@@ -162,6 +163,8 @@ export default function RegisterPage() {
             {apiError && (
               <div className="px-3.5 py-2.5 rounded-lg bg-danger-soft border border-danger/20 text-sm text-danger">{apiError}</div>
             )}
+
+            <LegalNotice />
 
             <button type="submit" disabled={isSubmitting}
               className="mt-1 h-11 rounded-lg bg-brand text-white font-display font-semibold text-md hover:bg-brand/90 transition-colors active:scale-[0.98] disabled:opacity-60">

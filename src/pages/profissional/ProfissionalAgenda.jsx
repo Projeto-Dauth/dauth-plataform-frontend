@@ -14,13 +14,13 @@ import api from '@/lib/api'
 import { searchClients } from '@/lib/searchClients'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
-import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { fetchTeam } from '@/lib/team'
 import { useTour } from '@/hooks/useTour'
 import { profissionalSteps } from '@/tours/profissionalTour'
 import Modal from '@/components/ui/Modal'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import { usePermission } from '@/hooks/usePermission'
-import { outsideWorkingHours, workingHoursLabel, fetchWorkingHours, buildOutsideHoursWarning, UNKNOWN_HOURS } from '@/lib/workingHours'
+import { outsideWorkingHours, workingHoursLabel, fetchWorkingHours, buildOutsideHoursWarning } from '@/lib/workingHours'
 import { formatPhone } from '@/lib/phone'
 import { TIME_SLOTS, STATUS_STYLE, parseTime, serviceLabel, serviceNames, splitIntoSegments, coversSlot, anchoredToSlot, apptHeight, apptTop, isSlotPast, toDateStr, formatHeader, addMinutes, isBreakStart, coversBreak, spanBreak, leaveCoversSlot, leaveStartsAt, leaveTop, leaveHeight, computeColumns } from '@/lib/agendaGrid'
 import { LeaveContextMenu } from '@/components/agenda/LeaveContextMenu'
@@ -219,13 +219,8 @@ function NovoAgendamentoDrawer({ slot, professional, date, workingHour, onClose,
 
   // Candidatas a assistente: qualquer profissional (não só as que fazem o serviço).
   useEffect(() => {
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([p, a]) => setAssistantCandidates(
-        excludeMonitorAdmins([...(a.data.data ?? []), ...(p.data.data ?? [])]).map(u => ({ UUID: u.UUID, Name: u.Name }))
-      ))
+    fetchTeam()
+      .then(setAssistantCandidates)
       .catch(() => {})
   }, [])
 
@@ -688,13 +683,8 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
 
   // Candidatas a assistente: qualquer profissional (não só as que fazem o serviço).
   useEffect(() => {
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([p, a]) => setAssistantCandidates(
-        excludeMonitorAdmins([...(a.data.data ?? []), ...(p.data.data ?? [])]).map(u => ({ UUID: u.UUID, Name: u.Name }))
-      ))
+    fetchTeam()
+      .then(setAssistantCandidates)
       .catch(() => {})
   }, [])
   async function handleCancelRecurring() {
@@ -744,14 +734,10 @@ function TransferirDrawer({ appt, onClose, onSaved }) {
         // impedindo trocar a profissional de um item recém-adicionado. Mesma lógica
         // de DetalhesAgendamento.jsx/AdminAgenda.jsx — as telas devem se comportar igual.
         setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], loadingProfessionals: true } }))
-        Promise.all([
-          api.get('/users', { params: { Role: 'Profissional' } }),
-          api.get('/users', { params: { Role: 'Admin' } }),
-        ])
-          .then(([profRes, adminRes]) => {
+        fetchTeam()
+          .then((team) => {
             if (cancelled) return
-            const list = excludeMonitorAdmins([...(adminRes.data.data ?? []), ...(profRes.data.data ?? [])])
-              .map(u => ({ professional_id: u.UUID, name: u.Name }))
+            const list = team.map(u => ({ professional_id: u.UUID, name: u.Name }))
             setItemMeta(prev => ({ ...prev, [i]: { ...prev[i], professionalOptions: list, loadingProfessionals: false } }))
           })
           .catch(() => {
@@ -1164,12 +1150,8 @@ export default function ProfissionalAgenda() {
     if (!user?.publicId) return
     const weekday = date.getDay()
     setWhLoaded(false)
-    api.get(`/working-hours/professional/${user.publicId}`)
-      .then(({ data }) => {
-        const wh = (data.data ?? []).find(w => w.Weekday === weekday) ?? null
-        setWorkingHour(wh)
-      })
-      .catch(() => setWorkingHour(UNKNOWN_HOURS))
+    fetchWorkingHours([user.publicId], weekday)
+      .then((map) => setWorkingHour(map[user.publicId]))
       .finally(() => setWhLoaded(true))
   }, [user?.publicId, date])
 
@@ -1177,7 +1159,7 @@ export default function ProfissionalAgenda() {
     if (!silent) setLoading(true)
     try {
       const [apptRes, leaveRes] = await Promise.all([
-        api.get('/appointment/my', { params: { date: toDateStr(date), limit: 50 } }),
+        api.get('/appointment/my', { params: { date: toDateStr(date), limit: 500 } }),
         user?.id ? api.get(`/professional-leave/professional/${user.id}`, { params: { date: toDateStr(date) } })
           .then(r => (r.data.data ?? []).filter(l => l.Date === toDateStr(date)))
           .catch(() => []) : Promise.resolve([])

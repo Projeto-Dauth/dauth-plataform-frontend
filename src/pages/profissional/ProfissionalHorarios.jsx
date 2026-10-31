@@ -9,6 +9,7 @@ import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
+import { clearWorkingHoursCache } from '@/lib/workingHours'
 
 const DOW_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 const DOW_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -104,6 +105,7 @@ export default function ProfissionalHorarios() {
         break_start: form.break_start || null,
         break_end: form.break_end || null,
       })
+      clearWorkingHoursCache()
       addToast('Horário adicionado')
       setDrawer(null)
       load()
@@ -124,6 +126,7 @@ export default function ProfissionalHorarios() {
         break_start: form.break_start || null,
         break_end: form.break_end || null,
       })
+      clearWorkingHoursCache()
       addToast('Horário atualizado')
       setDrawer(null)
       load()
@@ -144,6 +147,7 @@ export default function ProfissionalHorarios() {
     setDeleting(true)
     try {
       await api.delete(`/working-hours/${deleteTarget.UUID}`)
+      clearWorkingHoursCache()
       addToast('Horário removido')
       setDeleteTarget(null)
       load()

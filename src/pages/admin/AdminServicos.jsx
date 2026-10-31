@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, useParams } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Sidebar from '@/components/layout/Sidebar'
 import Button from '@/components/ui/Button'
+import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -14,7 +15,7 @@ import { useRole } from '@/hooks/useRole'
 import { usePermission } from '@/hooks/usePermission'
 import api from '@/lib/api'
 import { navItemsByRole } from '@/config/navItems'
-import { excludeMonitorAdmins } from '@/config/monitorAdmins'
+import { fetchTeam } from '@/lib/team'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatDuration, formatPrice } from '@/lib/format'
 
@@ -24,6 +25,28 @@ const EMPTY_SERVICE = { Name: '', Duration: '01:00', Commission: '', Assistant_c
 const EMPTY_CATEGORY = { Name: '' }
 
 // Serviço sem comissão definida (criado pela conta de serviço): a profissional recebe 0% até o Admin definir.
+// Profissionais ativas no serviço: o GET /service traz um item em Price_overrides por profissional vinculada
+const profCount = (svc) => svc.Price_overrides?.length ?? 0
+
+// Botão da coluna Profissionais: mostra quantas estão no serviço e abre o drawer para gerenciar.
+// Sem nenhuma, fica em vermelho — o serviço não aparece para agendar.
+function ProfsButton({ svc, onClick, className = '' }) {
+  const n = profCount(svc)
+  return (
+    <button
+      onClick={onClick}
+      title="Gerenciar profissionais deste serviço"
+      className={`flex items-center gap-2 cursor-pointer group ${className}`}
+    >
+      <Chip variant={n === 0 ? 'danger' : 'default'}>
+        <Icon name="users" size={13} />
+        {n === 0 ? 'Nenhuma' : n}
+      </Chip>
+      <span className="font-mono text-[11px] text-ink-3 group-hover:text-brand transition-colors">Gerenciar</span>
+    </button>
+  )
+}
+
 function CommissionPending() {
   return <span className="inline-flex items-center px-2 py-[1px] rounded-full text-[10.5px] font-medium bg-danger-soft text-danger">Comissão pendente</span>
 }
@@ -113,13 +136,8 @@ export default function AdminServicos() {
   useEffect(() => {
     loadServices()
     loadCategories()
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional' } }),
-      api.get('/users', { params: { Role: 'Admin' } }),
-    ])
-      .then(([profRes, adminRes]) => {
-        setAllProfessionals(excludeMonitorAdmins([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]))
-      })
+    fetchTeam()
+      .then(setAllProfessionals)
       .catch(() => {})
   }, [])
 
@@ -192,6 +210,12 @@ export default function AdminServicos() {
 
   // ─── Profissionais do serviço — handlers ─────────────────────────────────
 
+  // Depois de vincular/remover, a contagem da lista acompanha o drawer sem recarregar a página
+  function setLinked(rows) {
+    setLinkedProfs(rows)
+    setServices(list => list.map(s => s.UUID === profsDrawer.UUID ? { ...s, Price_overrides: rows.map(r => r.price_override ?? null) } : s))
+  }
+
   async function openProfsDrawer(svc) {
     setProfsDrawer(svc)
     setSelectedProfId('')
@@ -214,7 +238,7 @@ export default function AdminServicos() {
       addToast('Profissional vinculada', 'success')
       setSelectedProfId('')
       const { data } = await api.get(`/service/${profsDrawer.UUID}/professionals`)
-      setLinkedProfs(data.data ?? [])
+      setLinked(data.data ?? [])
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao vincular profissional', 'error')
     } finally {
@@ -230,7 +254,7 @@ export default function AdminServicos() {
       addToast('Vínculo removido', 'success')
       setUnlinkProf(null)
       const { data } = await api.get(`/service/${profsDrawer.UUID}/professionals`)
-      setLinkedProfs(data.data ?? [])
+      setLinked(data.data ?? [])
     } catch (err) {
       addToast(err.response?.data?.error || 'Erro ao remover vínculo', 'error')
     } finally {
@@ -392,9 +416,7 @@ export default function AdminServicos() {
                       <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2"><MoneyValue>{formatPrice(svc.Price)}</MoneyValue></td>
                       {showCommission && <td className="px-3.5 py-3 font-mono text-[12px] text-ink-2 border-b border-line-2">{svc.Commission == null ? <CommissionPending /> : `${svc.Commission}%`}</td>}
                       <td className="px-3.5 py-3 border-b border-line-2">
-                        <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer">
-                          <Icon name="users" size={13} />Gerenciar
-                        </button>
+                        <ProfsButton svc={svc} onClick={() => openProfsDrawer(svc)} />
                       </td>
                       <td className="px-3.5 py-3 text-right border-b border-line-2">
                         <div className="flex gap-1 justify-end">
@@ -424,9 +446,7 @@ export default function AdminServicos() {
                     {showCommission && <><span>·</span>{svc.Commission == null ? <CommissionPending /> : <span>Comissão {svc.Commission}%</span>}</>}
                   </div>
                   <div className="flex items-center gap-2 pt-3 border-t border-line-2">
-                    <button onClick={() => openProfsDrawer(svc)} className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3 hover:text-brand transition-colors cursor-pointer flex-1">
-                      <Icon name="users" size={13} />Profissionais
-                    </button>
+                    <ProfsButton svc={svc} onClick={() => openProfsDrawer(svc)} className="flex-1" />
                     <Button variant="ghost" size="sm" onClick={() => openEditSvc(svc)}><Icon name="edit" size={13} /></Button>
                     <Button variant="ghost" size="sm" onClick={() => setDeleteSvc(svc)}><Icon name="trash" size={13} /></Button>
                   </div>
@@ -581,7 +601,7 @@ export default function AdminServicos() {
                   placeholder="Vazio = serviço sem assistente"
                   className={inputCls}
                 />
-                <p className="text-[11px] text-ink-3 mt-1">Percentual sugerido ao escolher uma assistente no agendamento (a assistente recebe este percentual além da comissão de quem faz o serviço). Vazio = o percentual é informado na hora. Dá para escolher assistente em qualquer serviço.</p>
+                <p className="text-[11px] text-ink-3 mt-1">Percentual sugerido ao escolher uma assistente, somado à comissão de quem faz o serviço. Vazio = informado na hora.</p>
               </Field>
               )}
               <div className="flex gap-2 mt-auto pt-4">

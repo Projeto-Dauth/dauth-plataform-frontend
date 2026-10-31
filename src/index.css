@@ -168,3 +168,28 @@ aside { scrollbar-width: none; }
   letter-spacing: 1px;
   opacity: 0.55;
 }
+
+/* ── Docs — conteúdo markdown ── */
+.docs-content h1 { @apply font-display font-medium text-[22px] tracking-tight mb-3; }
+.docs-content h2 { @apply font-display font-medium text-[17px] tracking-tight mt-6 mb-2; }
+.docs-content h3 { @apply font-display font-medium text-[14.5px] tracking-tight mt-5 mb-1.5; }
+.docs-content p { @apply text-[13.5px] text-ink-2 leading-relaxed mb-3; }
+.docs-content ul, .docs-content ol { @apply text-[13.5px] text-ink-2 leading-relaxed mb-3 pl-5; }
+.docs-content ul { @apply list-disc; }
+.docs-content ol { @apply list-decimal; }
+.docs-content li { @apply mb-1; }
+.docs-content strong { @apply text-ink font-medium; }
+.docs-content blockquote { @apply border-l-2 border-brand/40 bg-brand-soft/50 text-ink-2 text-[13px] px-4 py-2 rounded-r-lg mb-3; }
+.docs-content table { @apply w-full text-[12.5px] mb-3 border-collapse; }
+.docs-content th { @apply text-left font-medium text-ink-3 border-b border-line px-3 py-2; }
+.docs-content td { @apply border-b border-line-2 px-3 py-2 text-ink-2; }
+.docs-content img { @apply rounded-xl border border-line my-3 max-w-full; }
+.docs-content code { @apply font-mono text-[12px] bg-surface-2 px-1.5 py-0.5 rounded; }
+
+/* Páginas legais (Termos e Privacidade): listas e tabelas */
+.prose-dauth ul { @apply list-disc pl-5 space-y-1.5; }
+.prose-dauth table { @apply w-full text-[13px] border-collapse border border-line rounded-md overflow-hidden; }
+.prose-dauth th { @apply text-left font-medium text-ink-3 bg-surface-2 border-b border-line px-3.5 py-2.5; }
+.prose-dauth td { @apply align-top border-b border-line-2 px-3.5 py-2.5 text-ink-2; }
+.prose-dauth tr:last-child td { @apply border-b-0; }
+.prose-dauth code { @apply font-mono text-[12px] bg-surface-2 px-1.5 py-0.5 rounded break-all; }

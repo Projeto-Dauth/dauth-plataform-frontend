@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import useSalonStore from '@/store/salonStore'
 
 // `wh` = registro de WorkingHours do profissional naquele dia da semana. Três estados:
 //   objeto        → trabalha, no intervalo Start_time–End_time
@@ -56,15 +57,33 @@ export function workingHoursLabel(wh, loaded = true) {
 
 // Busca o horário de cada profissional para um dia da semana (0=Dom … 6=Sáb).
 // Retorna { [professionalId]: wh | null | UNKNOWN_HOURS } — nunca rejeita.
+// Uma única busca traz o expediente da equipe inteira (todos os dias da semana) e fica em memória por
+// alguns minutos: trocar de dia na Agenda não busca de novo. Quem altera o expediente chama
+// clearWorkingHoursCache().
+const CACHE_MS = 5 * 60_000
+let cache = null // { salonId, at, rows }
+
+export function clearWorkingHoursCache() {
+  cache = null
+}
+
+async function loadSalonWorkingHours() {
+  const salonId = useSalonStore.getState().salon?.id
+  if (cache && cache.salonId === salonId && Date.now() - cache.at < CACHE_MS) return cache.rows
+  const { data } = await api.get('/working-hours')
+  cache = { salonId, at: Date.now(), rows: data.data ?? [] }
+  return cache.rows
+}
+
 export async function fetchWorkingHours(professionalIds, weekday) {
-  const results = await Promise.all(
-    professionalIds.map(id =>
-      api.get(`/working-hours/professional/${id}`)
-        .then(({ data }) => [id, (data.data ?? []).find(w => w.Weekday === weekday) ?? null])
-        .catch(() => [id, UNKNOWN_HOURS])
+  try {
+    const rows = await loadSalonWorkingHours()
+    return Object.fromEntries(
+      professionalIds.map(id => [id, rows.find(w => w.Professional_id === id && w.Weekday === weekday) ?? null])
     )
-  )
-  return Object.fromEntries(results)
+  } catch {
+    return Object.fromEntries(professionalIds.map(id => [id, UNKNOWN_HOURS]))
+  }
 }
 
 // Monta a mensagem do aviso para os itens que caem fora do expediente OU em cima do

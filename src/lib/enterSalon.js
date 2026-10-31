@@ -1,6 +1,7 @@
 import api from '@/lib/api'
 import useSalonStore from '@/store/salonStore'
 import useAuthStore from '@/store/authStore'
+import { toStoreSalon } from '@/lib/salonAccess'
 
 export const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario: 'cliente', Servico: 'admin' }
 
@@ -10,10 +11,7 @@ export const ROLE_PATH = { Admin: 'admin', Profissional: 'profissional', Usuario
 export async function enterSalon(member, navigate) {
   const { salon } = member
   useSalonStore.getState().setSalon(
-    {
-      id: member.salonId, name: salon.name, slug: salon.slug, plan: salon.plan, status: salon.status,
-      trialEndsAt: salon.trialEndsAt, colorPalette: salon.colorPalette ?? null, paymentMethods: salon.paymentMethods,
-    },
+    toStoreSalon(salon, member.salonId),
     member.role, member.id,
   )
   try {

@@ -1,0 +1,11 @@
+[
+  { "slug": "agenda", "title": "Agenda" },
+  { "slug": "agendamentos", "title": "Agendamentos" },
+  { "slug": "comandas", "title": "Comandas" },
+  { "slug": "produtos", "title": "Produtos e Pedidos" },
+  { "slug": "pacotes", "title": "Pacotes" },
+  { "slug": "comissoes", "title": "Minhas comissões" },
+  { "slug": "servicos-horarios", "title": "Meus serviços e horários" },
+  { "slug": "notificacoes", "title": "Notificações" },
+  { "slug": "perfil", "title": "Meu perfil" }
+]

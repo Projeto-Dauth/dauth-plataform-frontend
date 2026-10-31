@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate, NavLink, useParams } from 'react-router-dom'
 import Avatar from '@/components/ui/Avatar'
 import Icon from '@/components/ui/Icons'
-import useAuthStore from '@/store/authStore'
 import useSalonStore from '@/store/salonStore'
 import api from '@/lib/api'
 import { formatMonthYear } from '@/lib/format'
 import SalonSwitcher from '@/components/layout/SalonSwitcher'
 import logo from '@/logo-dauth-agendamentos.png'
+import { signOut } from '@/lib/signOut'
 
 // Data de entrada no salão (SalonMember.createdAt via /users/perfil/me), guardada por salão: o menu é
 // montado em várias páginas e não precisa buscar de novo a cada uma.
@@ -15,7 +15,6 @@ const memberSinceCache = new Map()
 
 export default function ClienteSidebar({ user, onClose }) {
   const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
   const { salonSlug } = useParams()
   const salon = useSalonStore((s) => s.salon)
   const role = useSalonStore((s) => s.role)
@@ -39,8 +38,7 @@ export default function ClienteSidebar({ user, onClose }) {
   ]
 
   async function handleLogout() {
-    try { await api.post('/auth/logout') } catch {}
-    logout()
+    await signOut()
     navigate('/login', { replace: true })
   }
 

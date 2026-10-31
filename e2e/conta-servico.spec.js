@@ -93,6 +93,14 @@ test('conta de serviço: o que é de Admin é recusado na tela e na API', async 
   expect((await api('get', `/users/${s.joao}/credit-balance`)).ok(), 'saldo de crédito no Caixa').toBe(true)
 })
 
+test('Redefinir senha da conta de serviço é recusado (o (00) não recebe WhatsApp) e aponta a tela certa', async ({ page }) => {
+  const s = await createBookingSalon(page)
+  const account = await createServiceAccount(page, s)
+  const res = await page.request.patch(`${E2E_API_URL}/api/users/${account.memberId}/reset-password`, { headers: { 'x-salon-id': s.salon.id } })
+  expect(res.status()).toBe(422)
+  expect((await res.json()).error).toMatch(/Contas de serviço/)
+})
+
 test('serviço criado pela conta de serviço nasce sem comissão e o Admin é avisado', async ({ page, browser }) => {
   const s = await createBookingSalon(page)
   const account = await createServiceAccount(page, s)

@@ -10,6 +10,13 @@ export async function createSalon(page, name = `Salão E2E ${Date.now()}`) {
   return res.json() // { id, name, slug, status, joinCode: 'XXXX-XXXX', ... }
 }
 
+// Põe o salão num plano pago, em dia (direto no banco). O trial tem só as permissões do Essencial: teste que
+// precisa de pacotes/produtos num salão próprio chama isto depois de criá-lo.
+export const setPaidPlan = (salonId, plan = 'business') => prisma.salon.update({
+  where: { id: salonId },
+  data: { status: 'active', plan, trialEndsAt: null, planEndsAt: new Date(Date.now() + 30 * 86_400_000) },
+})
+
 // Código de acesso atual do salão (lido do banco), no formato que a tela mostra: XXXX-XXXX.
 export async function joinCodeOf(salonId) {
   const { joinCode } = await prisma.salon.findUnique({ where: { id: salonId }, select: { joinCode: true } })

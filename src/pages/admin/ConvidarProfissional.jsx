@@ -110,7 +110,7 @@ function ServiceAccounts({ accounts, salonId, onChange }) {
       </h4>
       <form onSubmit={handleCreate} className="bg-surface border border-line rounded-xl p-5 mb-3">
         <p className="text-[12px] text-ink-3 leading-relaxed mb-3">
-          Para o computador que fica aberto no salão. Entra com um telefone de DDD (00) — que não é de nenhuma pessoa — e a senha que você definir. Acessa Agenda, Caixa, Clientes e Serviços; ajuste o que ela vê na ficha da conta em Clientes. Nunca vê comissões, relatórios nem configurações.
+          Para o computador fixo do salão: entra com telefone de DDD (00) e a senha que você definir, e acessa Agenda, Caixa, Clientes e Serviços (ajuste na ficha da conta, em Clientes). Nunca vê comissões, relatórios nem configurações.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4">
           <Input label="Nome" aria-label="Nome da conta de serviço" value={form.name} placeholder="Ex: Recepção"
@@ -319,7 +319,7 @@ export default function ConvidarProfissional() {
             />
           </div>
           <p className="text-[12px] text-ink-3 leading-relaxed mb-4">
-            A pessoa recebe um link por email: quem já tem conta no Dauth só entra e aceita; quem não tem cria a conta pelo próprio link. Para chamar alguém que já é cliente do salão, use “Convidar para a equipe” na ficha do cliente. O link vale 7 dias — depois, use “Reenviar”.
+            A pessoa recebe um link por email para criar a conta (ou só aceitar, se já tiver). O link vale 7 dias; depois, use “Reenviar”. Para chamar um cliente do salão, use “Convidar para a equipe” na ficha dele.
           </p>
           <Button type="submit" loading={loading} disabled={limitReached} className="w-full justify-center">
             {limitReached ? 'Limite de profissionais atingido' : 'Enviar convite'}

@@ -4,6 +4,8 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import CreditAndTrocoFields from '@/components/ui/CreditAndTrocoFields'
 import api from '@/lib/api'
+import { fetchTeam } from '@/lib/team'
+import HistoricoCliente from '@/components/ui/HistoricoCliente'
 import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
 import { useToast } from '@/context/ToastContext'
@@ -63,11 +65,8 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
     api.get('/product', { params: { limit: 100 } })
       .then(({ data }) => setProducts((data.data ?? []).filter(p => p.Active)))
       .catch(() => {})
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([profRes, adminRes]) => setProfessionals([...(profRes.data.data ?? []), ...(adminRes.data.data ?? [])]))
+    fetchTeam()
+      .then(setProfessionals)
       .catch(() => {})
   }, [])
 
@@ -403,6 +402,12 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
         <div className="flex flex-col md:flex-row flex-1 min-h-0">
         <div className="flex-1 min-w-0 flex flex-col md:border-r border-line">
         <div className="px-6 pt-5 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
+          <div className="md:hidden mb-3 empty:hidden">
+            <HistoricoCliente
+              clientId={clientData.client_id}
+              exclude={clientData.tabs.map(t => ({ group: t.Appointment?.Booking_group, date: t.Appointment?.Date, start: t.Appointment?.Start_time }))}
+            />
+          </div>
           <div className="grid grid-cols-[1.3fr_1fr_0.85fr_0.6fr_5rem_24px] gap-2 items-center mb-2 px-0.5 font-mono text-[9.5px] uppercase tracking-widest text-ink-4">
             <span>Serviço</span>
             <span>Profissional</span>
@@ -584,6 +589,12 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
         </div>
 
         <div className="w-full md:w-[300px] shrink-0 flex flex-col border-t md:border-t-0 border-line">
+          <div className="max-md:hidden px-5 py-3 border-b border-line shrink-0 empty:hidden">
+            <HistoricoCliente
+              clientId={clientData.client_id}
+              exclude={clientData.tabs.map(t => ({ group: t.Appointment?.Booking_group, date: t.Appointment?.Date, start: t.Appointment?.Start_time }))}
+            />
+          </div>
           <div className="px-5 py-4 border-b border-line shrink-0">
             <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">Adicionar à conta</span>
             <div className="flex gap-1 mt-2">

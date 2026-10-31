@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { E2E_API_URL } from '../../backend/e2e/testEnv.js'
 import { SEED_USERS, SEED_SALON_SLUG, loginAs } from './support/session.js'
-import { createSalon } from './support/salon.js'
+import { createSalon, setPaidPlan } from './support/salon.js'
 import { apiPost } from './support/demo.js'
 import { createBookingSalon, daysFromToday } from './support/bookingSalon.js'
 import { paidAttendance } from './support/team.js'
@@ -52,6 +52,7 @@ test('excluir salão bloqueia o acesso e cancelar a exclusão devolve', async ({
 test('exclusão vencida: a rotina apaga o salão e os dados dele, sem mexer em outros salões nem nas contas', async ({ page }) => {
   await loginAs(page, SEED_USERS.owner)
   const s = await createBookingSalon(page)
+  await setPaidPlan(s.salon.id) // vende produto (trial = Essencial, sem produtos)
   const att = await paidAttendance(page, s.salon, { professional: s.pro.id, service: 'Corte E2E', day: daysFromToday(2) })
   await apiPost(page, s.salon.id, `/users/${att.client}/credit-adjustment`, { amount: 20 })
   const product = await apiPost(page, s.salon.id, '/product', { Name: 'Produto Excluir', Price: 10, Stock: 5 })

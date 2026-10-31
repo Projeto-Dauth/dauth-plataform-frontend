@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
+import HistoricoCliente from '@/components/ui/HistoricoCliente'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
 import PaymentMethodSplit from '@/components/ui/PaymentMethodSplit'
@@ -19,6 +20,7 @@ import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import { useRole } from '@/hooks/useRole'
 import api from '@/lib/api'
+import { fetchTeam } from '@/lib/team'
 import { batchPayExtraMessage } from '@/lib/creditToast'
 import { navItemsByRole } from '@/config/navItems'
 import { usePagination } from '@/hooks/usePagination'
@@ -26,7 +28,7 @@ import { useTour } from '@/hooks/useTour'
 import { profissionalComandasSteps } from '@/tours/profissionalComandasTour'
 import MoneyValue from '@/components/ui/MoneyValue'
 import { formatCurrency, formatDate, formatTime, tabStatusLabel, tabStatusVariant } from '@/lib/format'
-import { STATUS_FILTERS, PERIOD_PRESETS, postAddService, tabDateStr, getPeriodRange, isFiadoTab } from '@/lib/caixa'
+import { STATUS_FILTERS, PERIOD_PRESETS, postAddService, fetchTabs, tabDateStr, resolvePeriod, isFiadoTab } from '@/lib/caixa'
 import { TabPaymentInfo } from '@/components/caixa/TabPaymentInfo'
 import { TabPedidosProdutos } from '@/components/caixa/TabPedidosProdutos'
 
@@ -48,6 +50,7 @@ export default function ProfissionalComandas() {
   const [periodPreset, setPeriodPreset] = useState('todos')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const { from: periodFrom, to: periodTo } = resolvePeriod(periodPreset, customFrom, customTo)
   const [search, setSearch] = useState('')
   const [onlyMensalista, setOnlyMensalista] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -80,11 +83,8 @@ export default function ProfissionalComandas() {
   const [confirmingOverlap, setConfirmingOverlap] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      api.get('/users', { params: { Role: 'Profissional', limit: 100 } }),
-      api.get('/users', { params: { Role: 'Admin', limit: 100 } }),
-    ])
-      .then(([a, b]) => setProfessionals([...(a.data.data ?? []), ...(b.data.data ?? [])]))
+    fetchTeam()
+      .then(setProfessionals)
       .catch(() => setProfessionals([]))
   }, [])
 
@@ -149,14 +149,12 @@ export default function ProfissionalComandas() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const [apptRes, tabRes, accountsRes] = await Promise.all([
-        api.get('/appointment/my', { params: { limit: 500 } }),
-        api.get('/tab', { params: { limit: 1000 } }),
+      // O servidor já devolve só as comandas deste profissional (agendamento, item ou atendimento combinado)
+      const [tabsList, accountsRes] = await Promise.all([
+        fetchTabs({ from: periodFrom || undefined, to: periodTo || undefined }),
         api.get('/tab/open-accounts'),
       ])
-      const apptUUIDs = new Set((apptRes.data.data ?? []).map(a => a.UUID))
-      const myTabs = (tabRes.data.data ?? []).filter(t => t.Appointment && apptUUIDs.has(t.Appointment.UUID))
-      setTabs(myTabs)
+      setTabs(tabsList)
       setOpenAccounts(accountsRes.data.data ?? [])
     } catch {
       setTabs([])
@@ -164,7 +162,7 @@ export default function ProfissionalComandas() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [periodFrom, periodTo])
 
   useEffect(() => { load() }, [load])
 
@@ -179,7 +177,7 @@ export default function ProfissionalComandas() {
       const match = tabs.find(isTargetTab)
       if (match) { setSelectedId(match.UUID); return }
     }
-    if (!selectedId) setSelectedId(tabs[0].UUID)
+    if (!selectedId && window.matchMedia('(min-width: 1024px)').matches) setSelectedId(tabs[0].UUID)
   }, [tabs])
 
   const filteredByStatus = statusFilter === 'Todos'
@@ -189,13 +187,10 @@ export default function ProfissionalComandas() {
         return t.Status === statusFilter
       })
 
-  const { from: periodFrom, to: periodTo } = periodPreset === 'personalizado'
-    ? { from: customFrom || null, to: customTo || null }
-    : getPeriodRange(periodPreset)
-
   const filteredByPeriod = (!periodFrom && !periodTo)
     ? filteredByStatus
     : filteredByStatus.filter(t => {
+        if (t.Status === 'Em aberto') return true // comanda em aberto aparece em qualquer período
         const d = tabDateStr(t)
         if (!d) return false
         if (periodFrom && d < periodFrom) return false
@@ -613,6 +608,14 @@ export default function ProfissionalComandas() {
               </div>
 
               <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 scrollbar-hidden">
+                {selected.Status === 'Em aberto' && (
+                  <div className="pb-3 empty:hidden">
+                    <HistoricoCliente
+                      clientId={selected.Appointment?.ClientId ?? selected.Package?.ClientId}
+                      exclude={[{ group: selected.Booking_group, date: selected.Appointment?.Date, start: selected.Appointment?.Start_time }]}
+                    />
+                  </div>
+                )}
                 {selectedItems.length > 0 && (
                   <div className="pb-3.5 border-b border-dashed border-line-2 mb-1">
                     <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Itens</div>
