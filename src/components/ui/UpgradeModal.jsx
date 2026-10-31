@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import platformApi from '@/lib/platformApi'
-import { PLANS, FEATURE_LABEL, BILLING_OPTIONS, NO_REFUND_NOTICE, billingLabel, formatPlanPrice, planPrice, planRequiredFor } from '@/config/plans'
+import { PLANS, FEATURE_LABEL, BILLING_OPTIONS, NO_REFUND_NOTICE, WAITLIST_DISCOUNT, billingLabel, formatPlanPrice, planPrice, planRequiredFor } from '@/config/plans'
 import { formatDate } from '@/lib/format'
 
 const monthsText = (months) => (months === 1 ? '1 mês' : `${months} meses`)
@@ -13,6 +13,7 @@ function chargeNote(charge) {
   const { savings } = planPrice(charge.plan, charge.months)
   return `${billingLabel(charge.months)}: ${monthsText(charge.months)} de acesso, até ${formatDate(charge.coversUntil)}.`
     + (savings > 0 ? ` Você economiza ${formatPlanPrice(savings)} em relação ao mensal.` : '')
+    + (charge.discountCents > 0 ? ` Desconto da lista de espera: ${formatPlanPrice(charge.discountCents)}.` : '')
 }
 
 // `lockPlan`: plano fixo em `defaultPlan` (renovação, ou logo após criar o salão) — a escolha mostra só a duração.
@@ -58,6 +59,7 @@ export default function UpgradeModal({ salonId, defaultPlan, defaultMonths, mont
   const inPeriod = billing?.status === 'active' && !billing.expired && new Date(billing.planEndsAt) > new Date()
   const currentPlan = PLANS.find(p => p.id === billing?.plan)
   const isUpgrade = inPeriod && Boolean(currentPlan) && (planInfo?.priceCents ?? 0) > currentPlan.priceCents
+  const discountLeft = isUpgrade ? 0 : (billing?.discountMonthsLeft ?? 0) // upgrade não usa o desconto da lista de espera
 
   function startCheckout(plan, months) {
     setStep('pay')
@@ -172,6 +174,11 @@ export default function UpgradeModal({ salonId, defaultPlan, defaultMonths, mont
                   O novo período começa quando o atual termina, em {formatDate(billing.planEndsAt)}.
                 </p>
               )}
+              {discountLeft > 0 && (
+                <p style={{ fontSize: 12.5, color: 'rgb(var(--brand-soft-ink))', margin: '0 0 12px', lineHeight: 1.5, padding: '10px 12px', borderRadius: 10, background: 'rgb(var(--brand-soft))' }}>
+                  Desconto da lista de espera: {WAITLIST_DISCOUNT.percent}% em {discountLeft === 1 ? 'mais 1 mensalidade' : `mais ${discountLeft} mensalidades`}. Não soma com o desconto do trimestral ou semestral: vale o maior. Os preços abaixo já estão com o desconto.
+                </p>
+              )}
               <div role="radiogroup" aria-label="Duração do plano" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 14 }}>
                 {BILLING_OPTIONS.map(o => {
                   const on = months === o.months
@@ -193,7 +200,7 @@ export default function UpgradeModal({ salonId, defaultPlan, defaultMonths, mont
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {PLANS.filter(p => !lockPlan || p.id === selectedPlan).map(p => {
-                const price = planPrice(p.id, months)
+                const price = planPrice(p.id, months, discountLeft)
                 return (
                 <button key={p.id} onClick={() => setSelectedPlan(p.id)} style={{
                   textAlign: 'left', padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
@@ -269,7 +276,7 @@ export default function UpgradeModal({ salonId, defaultPlan, defaultMonths, mont
           Plano {planInfo?.label}
         </h2>
         <p style={{ fontSize: 24, fontWeight: 700, color: 'rgb(var(--ink))', marginBottom: charge ? 6 : 20, fontFamily: 'Inter, monospace' }}>
-          {formatPlanPrice(charge?.amount ?? planPrice(selectedPlan, months).total)}
+          {formatPlanPrice(charge?.amount ?? planPrice(selectedPlan, months, discountLeft).total)}
           {charge?.kind !== 'upgrade' && (
             <span style={{ fontSize: 14, fontWeight: 400, color: 'rgb(var(--ink-3))' }}> · {monthsText(charge?.months ?? months)}</span>
           )}
