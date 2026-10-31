@@ -7,6 +7,7 @@ export const PLANS = [
     label: 'Essencial',
     priceCents: 7990,
     prices: { 1: 7990, 3: 21570, 6: 40740 },
+    discountMonthCents: 6790,
     maxProfessionals: 3,
     tagline: 'Para quem está começando',
     features: ['Agenda', 'Clientes', 'Serviços/Categorias', 'Caixa', 'Comissões', 'Até 3 profissionais'],
@@ -17,6 +18,7 @@ export const PLANS = [
     label: 'Profissional',
     priceCents: 11990,
     prices: { 1: 11990, 3: 32370, 6: 61140 },
+    discountMonthCents: 10190,
     maxProfessionals: 8,
     tagline: 'Para operações em crescimento',
     features: ['Tudo do Essencial', 'Pacotes', 'Produtos', 'WhatsApp do salão', 'Suporte prioritário', 'Até 8 profissionais'],
@@ -27,6 +29,7 @@ export const PLANS = [
     label: 'Business',
     priceCents: 19990,
     prices: { 1: 19990, 3: 53970, 6: 101940 },
+    discountMonthCents: 16990,
     maxProfessionals: null,
     tagline: 'Para operações maiores',
     features: ['Tudo do Profissional', 'Dashboard personalizável', 'BI direcionado ao negócio', 'Sem limite de profissionais'],
@@ -42,11 +45,20 @@ export const BILLING_OPTIONS = [
 ]
 export const billingLabel = (months) => BILLING_OPTIONS.find(o => o.months === months)?.label ?? 'Mensal'
 
-// Preço de um plano numa duração: total, equivalente mensal e quanto economiza em relação ao mensal
-export function planPrice(planId, months = 1) {
+// Desconto da lista de espera (mesma regra de WAITLIST_DISCOUNT/discountedPrice em backend/src/config/billing.js):
+// `discountMonthCents` nas próximas mensalidades, sem somar com o desconto do trimestral/semestral (vale o menor preço).
+export const WAITLIST_DISCOUNT = { percent: 15, months: 3 }
+
+// Preço de um plano numa duração: total, equivalente mensal e quanto economiza em relação ao mensal.
+// `discountMonthsLeft` = mensalidades que o salão ainda tem com o desconto da lista de espera.
+export function planPrice(planId, months = 1, discountMonthsLeft = 0) {
   const plan = PLANS.find(p => p.id === planId) ?? PLANS[0]
-  const total = plan.prices[months] ?? plan.prices[1]
-  return { total, perMonth: Math.round(total / months), savings: plan.priceCents * months - total }
+  const full = plan.prices[months] ?? plan.prices[1]
+  const perMonthFull = full / months
+  const discountMonths = plan.discountMonthCents < perMonthFull ? Math.min(months, discountMonthsLeft) : 0
+  const discountCents = discountMonths * (perMonthFull - plan.discountMonthCents)
+  const total = full - discountCents
+  return { total, perMonth: Math.round(total / months), savings: plan.priceCents * months - total, discountCents }
 }
 
 // Aviso de que não há reembolso — o mesmo texto em todo lugar onde se paga

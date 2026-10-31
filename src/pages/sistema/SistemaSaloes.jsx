@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import platformApi from '@/lib/platformApi'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
-import { PLANS } from '@/config/plans'
+import { PLANS, WAITLIST_DISCOUNT } from '@/config/plans'
 import PaginationControls from '@/components/ui/PaginationControls'
 import EmptyState from '@/components/ui/EmptyState'
+import Button from '@/components/ui/Button'
 import {
   planLabel, durationLabel, daysLeftLabel, SituationBadge, OriginBadge, SITUATION_OPTIONS, selectCls, SkeletonRows, SidePanel,
 } from './shared'
@@ -168,10 +169,24 @@ function Field({ label, children }) {
 function SalonDetail({ id, onClose, onOpenErrors }) {
   const [s, setS] = useState(null)
   const [failed, setFailed] = useState(false)
+  const [granting, setGranting] = useState(false)
+  const [grantError, setGrantError] = useState(null)
 
-  useEffect(() => {
-    platformApi.get(`/system/salons/${id}`).then(r => setS(r.data)).catch(() => setFailed(true))
-  }, [id])
+  const load = () => platformApi.get(`/system/salons/${id}`).then(r => setS(r.data)).catch(() => setFailed(true))
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function grantDiscount() {
+    setGranting(true)
+    setGrantError(null)
+    try {
+      await platformApi.post(`/system/salons/${id}/waitlist-discount`)
+      await load()
+    } catch (e) {
+      setGrantError(e.response?.data?.error ?? 'Não foi possível aplicar o desconto.')
+    } finally {
+      setGranting(false)
+    }
+  }
 
   return (
     <SidePanel title={s?.name ?? 'Salão'} onClose={onClose}>
@@ -208,6 +223,24 @@ function SalonDetail({ id, onClose, onOpenErrors }) {
             </div>
 
             <section>
+              <p className="eyebrow mb-2">Lista de espera</p>
+              {s.discount.source ? (
+                <p className="text-[13px] text-ink">
+                  {s.discount.source === 'manual' ? 'Desconto dado à mão' : 'Inscrito na lista (telefone bateu)'} ·{' '}
+                  {s.discount.monthsLeft > 0 ? `${s.discount.monthsLeft} de ${WAITLIST_DISCOUNT.months} mensalidades com desconto restantes` : 'desconto já usado'}
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[13px] text-ink-3">Sem desconto. Use se o dono se inscreveu com outro telefone.</p>
+                  <Button variant="outline" size="sm" loading={granting} onClick={grantDiscount}>
+                    Aplicar desconto da lista de espera
+                  </Button>
+                </div>
+              )}
+              {grantError && <p role="alert" className="mt-2 text-[12.5px] text-danger">{grantError}</p>}
+            </section>
+
+            <section>
               <p className="eyebrow mb-2">Pagamentos</p>
               {s.payments.length === 0 ? <p className="text-sm text-ink-3">Nenhum pagamento.</p> : (
                 <div className="rounded-lg border border-line divide-y divide-line">
@@ -220,7 +253,10 @@ function SalonDetail({ id, onClose, onOpenErrors }) {
                           {p.periodEnd ? ` · cobre até ${formatDate(p.periodEnd)}` : ''}
                         </p>
                       </div>
-                      <span className={p.status === 'duplicate' ? 'text-danger' : 'text-ink-2'}>{formatCurrency(p.amountCents / 100)}</span>
+                      <span className={`text-right ${p.status === 'duplicate' ? 'text-danger' : 'text-ink-2'}`}>
+                        {formatCurrency(p.amountCents / 100)}
+                        {p.discountCents > 0 && <span className="block text-[11px] text-ink-3">desconto lista: {formatCurrency(p.discountCents / 100)}</span>}
+                      </span>
                     </div>
                   ))}
                 </div>

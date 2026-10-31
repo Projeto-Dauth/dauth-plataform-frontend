@@ -4,7 +4,7 @@ import Chip from '@/components/ui/Chip'
 import Section from '@/components/ui/SettingsSection'
 import platformApi from '@/lib/platformApi'
 import { useToast } from '@/context/ToastContext'
-import { PLANS, NO_REFUND_NOTICE, billingLabel, formatPlanPrice } from '@/config/plans'
+import { PLANS, NO_REFUND_NOTICE, WAITLIST_DISCOUNT, billingLabel, formatPlanPrice } from '@/config/plans'
 import { formatDate } from '@/lib/format'
 
 const PLAN_LABELS = Object.fromEntries(PLANS.map((p) => [p.id, p.label]))
@@ -80,6 +80,11 @@ export default function SubscriptionPanel({ salonId, config, refreshKey, onPay, 
           </p>
           <Chip variant={state.tone} dot className="mt-4 !text-[15px] !font-semibold">{state.title}</Chip>
           <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{state.detail}</p>
+          {billing.discountMonthsLeft > 0 && (
+            <p className="mt-3 rounded-[10px] bg-brand-soft px-4 py-3 text-[15px] leading-relaxed text-brand-soft-ink">
+              Você tem o desconto da lista de espera: {WAITLIST_DISCOUNT.percent}% em {billing.discountMonthsLeft === 1 ? 'mais 1 mensalidade' : `mais ${billing.discountMonthsLeft} mensalidades`}. Ele já entra no valor do PIX.
+            </p>
+          )}
           {isActive && cancelAtPeriodEnd && (
             <div className="mt-4">
               <Button variant="outline" loading={busy} onClick={() => changeSubscription('resume', 'Cancelamento desfeito. Seu plano continua ativo.')}>
