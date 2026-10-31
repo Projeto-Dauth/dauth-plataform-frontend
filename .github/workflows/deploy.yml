@@ -1,0 +1,133 @@
+# Deploy do frontend na VPS — a cada push na main (ou à mão, em Actions → "Deploy VPS" → Run workflow).
+# Base: workflow do Projeto Dauth Frontend (produto de referência), adaptado para ser tudo ou nada:
+#   1. Build no GitHub, com as variáveis de produção. Falhou → nada vai para a VPS.
+#   2. Envia o build para uma pasta temporária na VPS (o site no ar não é tocado). Falhou no meio → nada muda.
+#   3. Copia os arquivos novos para a pasta que o nginx serve, MENOS o index.html (os arquivos de assets/ têm hash no
+#      nome e não colidem com os antigos), e por último troca o index.html numa operação única (mv). Até essa troca,
+#      todo mundo continua no site antigo; depois dela, no novo inteiro.
+#   4. Confere se o site está servindo a versão nova. Não está → devolve o index.html anterior e o job fica vermelho.
+# Copia para dentro da mesma pasta (em vez de trocar a pasta): funciona também com o nginx em Docker montando o
+# dist como volume, que não enxergaria uma pasta nova.
+#
+# Secrets (Settings → Secrets and variables → Actions → Secrets):
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY (chave privada com acesso SSH ao usuário)
+# Endereço do app e pasta do site na VPS: no `env` logo abaixo (APP_URL, FRONTEND_DIR).
+
+name: Deploy VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# ── Ajuste aqui ─────────────────────────────────────────────────────────────────────────────────────────────────
+env:
+  # Caminho completo, na VPS, da pasta que o nginx serve (onde fica o index.html do build — normalmente o dist).
+  FRONTEND_DIR: /home/dalmas/apps/dauth-plataform/dauth-plataform-frontend/dist
+  # Endereço do app, com https:// e sem barra no fim. Gera as VITE_* do build (API no mesmo domínio).
+  APP_URL: https://app.dauth.com.br
+# ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+concurrency:
+  group: deploy-frontend-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build e deploy na VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir configuração
+        run: |
+          case "$FRONTEND_DIR" in *ALTERAR*|"") echo "::error::Preencha FRONTEND_DIR no topo do deploy.yml"; exit 1;; esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Front e API no mesmo domínio (o cookie de login é do domínio) — ver backend/docs/DEPLOY_PRODUCAO.md
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ env.APP_URL }}/api
+          VITE_PLATFORM_URL: ${{ env.APP_URL }}/api/v1
+          VITE_AUTH_URL: ${{ env.APP_URL }}/api/auth
+
+      # Arquivo principal do build novo: é por ele que o passo final confere se o site trocou de versão
+      - name: Conferir o build
+        id: build
+        run: |
+          test -f dist/index.html
+          ASSET=$(grep -o 'assets/index-[^"]*\.js' dist/index.html | head -1)
+          test -n "$ASSET" || { echo "::error::index.html sem o script principal"; exit 1; }
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+
+      # O backend precisa estar no ar antes de trocar o front (um front novo pode depender de rota nova)
+      - name: Backend no ar
+        run: curl -fsS --max-time 20 "${{ env.APP_URL }}/api/auth/ok"
+
+      - name: Enviar o build para pasta temporária na VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "dist/"
+          target: "/tmp/dauth-front-${{ github.sha }}"
+          strip_components: 1
+          rm: true
+
+      - name: Publicar (index.html por último, com volta se falhar)
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+          NEW_ASSET: ${{ steps.build.outputs.asset }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: DEPLOY_SHA,FRONTEND_DIR,APP_URL,NEW_ASSET
+          script: |
+            bash -s <<'DEPLOY'
+            set -euo pipefail
+
+            TMP="/tmp/dauth-front-$DEPLOY_SHA"
+            NEW_INDEX="$FRONTEND_DIR/.index.html.new"
+            trap 'rm -rf "$TMP" "$NEW_INDEX"' EXIT
+
+            test -f "$TMP/index.html" || { echo "Build incompleto em $TMP"; exit 1; }
+            test -d "$FRONTEND_DIR" || { echo "Pasta $FRONTEND_DIR não existe"; exit 1; }
+            test -w "$FRONTEND_DIR" || { echo "Sem permissão de escrita em $FRONTEND_DIR"; exit 1; }
+
+            # 1. Guarda o index.html no ar (para voltar) e deixa o novo de lado, na mesma pasta, com outro nome
+            if [ -f "$FRONTEND_DIR/index.html" ]; then cp -p "$FRONTEND_DIR/index.html" "$FRONTEND_DIR/.index.html.prev"; fi
+            mv "$TMP/index.html" "$NEW_INDEX"
+
+            # 2. Arquivos novos (assets com hash, imagens do public/). Ninguém carrega a versão nova ainda.
+            cp -R "$TMP/." "$FRONTEND_DIR/"
+
+            # 3. Troca única (rename na mesma pasta): a partir daqui o site é a versão nova inteira
+            mv -f "$NEW_INDEX" "$FRONTEND_DIR/index.html"
+
+            # 4. Confere pelo endereço público
+            for _ in 1 2 3 4 5 6; do
+              if curl -fsS --max-time 15 "$APP_URL/?deploy=$DEPLOY_SHA" | grep -q "$NEW_ASSET"; then
+                echo "Front no ar ($DEPLOY_SHA, $NEW_ASSET)."
+                # Assets de builds antigos: ficam 14 dias (quem está com a página aberta ainda pode pedir um deles)
+                find "$FRONTEND_DIR/assets" -type f -mtime +14 -delete 2>/dev/null || true
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "::error::O site não passou a servir a versão nova. Voltando o index.html anterior."
+            if [ -f "$FRONTEND_DIR/.index.html.prev" ]; then
+              mv -f "$FRONTEND_DIR/.index.html.prev" "$FRONTEND_DIR/index.html"
+            fi
+            exit 1
+            DEPLOY
