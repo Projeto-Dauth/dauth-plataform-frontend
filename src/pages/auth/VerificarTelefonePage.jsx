@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import logo from '@/logo-dauth-agendamentos.png'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import platformApi from '@/lib/platformApi'
+import useAuthStore from '@/store/authStore'
+import { useToast } from '@/context/ToastContext'
 
 export default function VerificarTelefonePage() {
   const [searchParams] = useSearchParams()
-  const [status, setStatus] = useState('loading') // 'loading' | 'success' | 'error'
+  const [status, setStatus] = useState('loading') // 'loading' | 'error'
   const [errorMsg, setErrorMsg] = useState('')
-  const [joinedSalons, setJoinedSalons] = useState([]) // conta criada pelo convite: equipes em que entrou
   const called = useRef(false)
+  const navigate = useNavigate()
+  const login = useAuthStore((s) => s.login)
+  const { addToast } = useToast()
 
   useEffect(() => {
     if (called.current) return
@@ -23,7 +27,13 @@ export default function VerificarTelefonePage() {
     }
 
     platformApi.post('/auth/verify-phone', { token })
-      .then(({ data }) => { setJoinedSalons(data.joinedSalons ?? []); setStatus('success') })
+      .then(({ data }) => {
+        // O backend já abriu a sessão: entra direto, sem digitar a senha
+        login({ id: data.user.id, name: data.user.name, platformRole: data.user.platformRole })
+        const joined = data.joinedSalons ?? []
+        addToast(joined.length ? `Telefone confirmado. Você já faz parte da equipe de ${joined.join(', ')}.` : 'Telefone confirmado. Bem-vindo!', 'success')
+        navigate('/meus-saloes', { replace: true })
+      })
       .catch((err) => {
         setErrorMsg(err.response?.data?.error ?? 'Token inválido ou expirado.')
         setStatus('error')
@@ -52,27 +62,6 @@ export default function VerificarTelefonePage() {
             </>
           )}
 
-          {status === 'success' && (
-            <>
-              <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-5">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4a6b3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <h3 className="font-display font-medium text-[20px] tracking-tight mb-2">
-                Telefone confirmado!
-              </h3>
-              <p className="text-[13px] text-ink-3 mb-6">
-                Sua conta está ativa.{joinedSalons.length > 0 && <> Você já faz parte da equipe de <strong className="text-ink-2">{joinedSalons.join(', ')}</strong>.</>} Agora é só entrar.
-              </p>
-              <Link
-                to="/login"
-                className="inline-flex items-center justify-center h-[42px] px-6 rounded-md bg-brand text-white font-medium text-[14px] hover:bg-brand/90 transition-colors w-full"
-              >
-                Ir para o login
-              </Link>
-            </>
-          )}
 
           {status === 'error' && (
             <>

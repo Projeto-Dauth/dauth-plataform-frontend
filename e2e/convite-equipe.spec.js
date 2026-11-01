@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { SEED_USERS, loginAs, loginByUi, uniquePhone } from './support/session.js'
+import { SEED_USERS, loginAs, uniquePhone } from './support/session.js'
 import { createSalon } from './support/salon.js'
 import { newUserPage } from './support/browser.js'
 import prisma from './support/db.js'
@@ -37,7 +37,7 @@ test('pessoa convidada cria a conta pelo link e entra na equipe', async ({ page,
   await maria.goto(`/verificar-telefone?token=${user.verificationToken}`)
   await expect(maria.getByText(`Você já faz parte da equipe de ${salon.name}`)).toBeVisible()
 
-  await loginByUi(maria, phone, password)
+  // O link já abre a sessão: cai direto em Meus salões
   await expect(maria).toHaveURL(/\/meus-saloes$/)
-  await expect(maria.getByText(salon.name)).toBeVisible()
+  await expect(maria.getByText(salon.name, { exact: true })).toBeVisible()
 })
