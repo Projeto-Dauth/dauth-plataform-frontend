@@ -180,6 +180,7 @@ export default function MeusSaloesPage() {
   const firstName = user?.name?.split(' ')[0] ?? 'bem-vindo'
   // Salão arquivado/excluído só aparece para o Admin (que pode desarquivar/cancelar a exclusão)
   const members = salons.filter(m => m.role === 'Admin' || canEnterSalon(m))
+  const noSalons = !loading && members.length === 0 // primeira visita: tela de boas-vindas centralizada
   const counts = { ativos: 0, arquivados: 0, excluidos: 0 }
   members.forEach(m => { counts[salonTab(m.salon)]++ })
   // Aba esvaziou (ex.: cancelou a última exclusão) → volta para Ativos
@@ -211,12 +212,12 @@ export default function MeusSaloesPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-12">
         {/* ── Hero ── */}
-        <div className="mb-10">
+        <div className={`mb-10 ${noSalons ? 'text-center' : ''}`}>
           <p className="eyebrow mb-2">Meus salões</p>
           <h1 className="font-serif text-[40px] font-light text-ink tracking-tight leading-tight">
             Olá, {firstName}.
           </h1>
-          <p className="text-ink-3 mt-1.5 text-md">Escolha um salão para entrar.</p>
+          <p className="text-ink-3 mt-1.5 text-md">{noSalons ? 'Boas-vindas ao Dauth.' : 'Escolha um salão para entrar.'}</p>
         </div>
 
         <PendingInvitations onAccepted={load} />
@@ -317,17 +318,31 @@ export default function MeusSaloesPage() {
           </div>
         )}
 
-        {/* ── Sem nenhum vínculo ── */}
-        {!loading && members.length === 0 && (
-          <div className="border-2 border-dashed border-line rounded-xl p-8 sm:p-12 text-center mt-4">
-            <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center mx-auto mb-4">
-              <Icon name="scissors" size={24} className="text-ink-3" />
-            </div>
-            <h3 className="font-serif text-[26px] font-light text-ink mb-1">Você ainda não tem vínculo com nenhum salão</h3>
-            <p className="text-sm text-ink-3 mb-6">Digite o código que o salão passou para você e entre.</p>
+        {/* ── Sem nenhum vínculo: explica como chegar ao salão (código ou link) ── */}
+        {noSalons && (
+          <div className="bg-surface border border-line rounded-xl p-6 sm:p-10 mt-4 max-w-xl mx-auto text-center">
+            <h3 className="font-serif text-[26px] font-light text-ink mb-6">Vamos encontrar o seu salão</h3>
+            <ol className="flex flex-col gap-4 mb-8 w-fit mx-auto text-left">
+              {[
+                ['Peça o código do salão', 'Na recepção ou à sua profissional.'],
+                ['Digite o código aqui', 'São 8 letras e números.'],
+                ['Pronto', 'Agende e acompanhe seus horários.'],
+              ].map(([title, desc], i) => (
+                <li key={title} className="flex gap-3.5">
+                  <span className="w-7 h-7 rounded-full bg-brand-soft text-brand-soft-ink font-display font-semibold text-sm flex items-center justify-center shrink-0">{i + 1}</span>
+                  <div>
+                    <div className="text-md text-ink font-medium">{title}</div>
+                    <div className="text-sm text-ink-3">{desc}</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
             <div className="max-w-xs mx-auto text-left">
-              <JoinByCodeForm onJoined={enter} />
+              <JoinByCodeForm onJoined={enter} autoFocus={false} showHint={false} />
             </div>
+            <p className="text-sm text-ink-3 mt-6 pt-5 border-t border-line">
+              Recebeu um link do salão? É só abrir: você entra direto, sem código.
+            </p>
             {isOwner && (
               <div className="mt-8 pt-6 border-t border-line">
                 <p className="text-sm text-ink-3 mb-3">Tem um salão para administrar?</p>

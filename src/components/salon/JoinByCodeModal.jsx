@@ -6,7 +6,7 @@ import { formatJoinCodeInput, isCompleteJoinCode } from '@/lib/joinCode'
 
 // Vincular-se a um salão pelo código de acesso, em dois passos: digitar o código → ver o nome do
 // salão e confirmar. `onJoined(member)` recebe o vínculo (item de GET /salon/my) para entrar no salão.
-export function JoinByCodeForm({ onJoined, onCancel }) {
+export function JoinByCodeForm({ onJoined, onCancel, autoFocus = true, showHint = true }) {
   const [code, setCode] = useState('')
   const [found, setFound] = useState(null) // { name, address, alreadyMember }
   const [busy, setBusy] = useState(false)
@@ -71,7 +71,7 @@ export function JoinByCodeForm({ onJoined, onCancel }) {
       <label htmlFor="join-code" className="block text-[11px] text-ink-3 font-medium uppercase tracking-wider mb-1.5">Código do salão</label>
       <input
         id="join-code"
-        autoFocus
+        autoFocus={autoFocus}
         autoComplete="off"
         inputMode="text"
         value={code}
@@ -80,7 +80,7 @@ export function JoinByCodeForm({ onJoined, onCancel }) {
         className="w-full h-[46px] px-[14px] rounded-md border border-line bg-surface text-ink font-mono text-[18px] tracking-[0.2em] text-center
           placeholder:text-ink-4 placeholder:tracking-[0.2em] focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/12 transition-colors"
       />
-      <p className="text-[12px] text-ink-3 mt-1.5 mb-4">Peça o código ao salão. Ele vem do administrador.</p>
+      {showHint ? <p className="text-[12px] text-ink-3 mt-1.5 mb-4">Peça o código ao salão. Ele vem do administrador.</p> : <div className="mb-4" />}
       {error && <p className="text-[12px] text-danger mb-3">{error}</p>}
       <div className="flex gap-2.5 justify-end">
         {onCancel && <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={busy}>Cancelar</Button>}
