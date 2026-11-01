@@ -18,7 +18,7 @@ export default function RegisterPage() {
   const [sentTo, setSentTo] = useState(null)
   const [sentVia, setSentVia] = useState('email') // 'email' | 'whatsapp'
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm()
+  const { register, handleSubmit, setValue, getValues, formState: { errors, isSubmitting } } = useForm()
 
   const onSubmit = async ({ name, phone, email, password }) => {
     setApiError('')
@@ -158,6 +158,19 @@ export default function RegisterPage() {
                 </button>
               </div>
               {errors.password && <span className="text-xs text-danger">{errors.password.message}</span>}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="eyebrow">Confirmar senha</label>
+              <input type={showPass ? 'text' : 'password'} autoComplete="off" placeholder="Repita a senha"
+                className={`h-11 bg-transparent border-b-[1.5px] text-ink text-md placeholder:text-ink-4 focus:outline-none transition-colors pb-1 ${errors.confirm ? 'border-danger' : 'border-line-3'}`}
+                onFocus={e => !errors.confirm && (e.target.style.borderColor = '#8b4a2b')}
+                onBlur={e => !errors.confirm && (e.target.style.borderColor = '')}
+                {...register('confirm', {
+                  required: 'Confirme a senha',
+                  validate: v => v === getValues('password') || 'As senhas não coincidem',
+                })} />
+              {errors.confirm && <span className="text-xs text-danger">{errors.confirm.message}</span>}
             </div>
 
             {apiError && (
