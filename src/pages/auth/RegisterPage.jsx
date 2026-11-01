@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [selectedRole, setSelectedRole] = useState('SalonOwner')
   const [sentTo, setSentTo] = useState(null)
   const [sentVia, setSentVia] = useState('email') // 'email' | 'whatsapp'
+  const [existing, setExisting] = useState(null) // { phone, email } — cliente já cadastrado virando dono
 
   const { register, handleSubmit, setValue, getValues, formState: { errors, isSubmitting } } = useForm()
 
@@ -33,6 +34,8 @@ export default function RegisterPage() {
         setSentTo(phone)
       }
     } catch (err) {
+      // Número já é de um cliente: oferece abrir o salão com a mesma conta
+      if (err.response?.data?.code === 'PHONE_HAS_ACCOUNT') return setExisting({ phone, email })
       setApiError(err.response?.data?.error ?? 'Erro ao criar conta.')
     }
   }
@@ -79,6 +82,12 @@ export default function RegisterPage() {
                 Ir para o login
               </Link>
             </>
+          ) : existing ? (
+            <UseExistingAccount
+              {...existing}
+              onBack={() => setExisting(null)}
+              onSent={() => { setSentVia('email'); setSentTo(existing.email); setExisting(null) }}
+            />
           ) : (
           <>
           <h1 className="font-serif text-[36px] font-light text-ink leading-tight mb-1 tracking-tight">
@@ -194,5 +203,68 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Telefone já é de um cliente: confirma a senha dessa conta para abrir o salão com ela.
+// A conta só vira de dono (e o email passa a valer) depois do clique no link enviado ao email.
+function UseExistingAccount({ phone, email, onBack, onSent }) {
+  const [showPass, setShowPass] = useState(false)
+  const [apiError, setApiError] = useState('')
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm()
+
+  const onSubmit = async ({ password }) => {
+    setApiError('')
+    try {
+      await platformApi.post('/auth/upgrade-to-owner', { phone, email, password })
+      onSent()
+    } catch (err) {
+      setApiError(err.response?.data?.error ?? 'Não foi possível continuar.')
+    }
+  }
+
+  return (
+    <>
+      <h1 className="font-serif text-[36px] font-light text-ink leading-tight mb-1 tracking-tight">
+        Você já tem uma conta
+      </h1>
+      <p className="text-sm text-ink-3 mb-8">
+        O número <strong className="text-ink">{phone}</strong> já está cadastrado. Quer criar seu salão com essa conta?
+        Digite a senha dela para continuar.
+      </p>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate autoComplete="off" className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <label className="eyebrow">Senha da conta</label>
+          <div className="relative">
+            <input type={showPass ? 'text' : 'password'} autoComplete="off" autoFocus placeholder="A senha que você usa para entrar"
+              className={`w-full h-11 bg-transparent border-b-[1.5px] text-ink text-md placeholder:text-ink-4 focus:outline-none transition-colors pb-1 pr-8 ${errors.password ? 'border-danger' : 'border-line-3'}`}
+              {...register('password', { required: 'Senha obrigatória' })} />
+            <button type="button" onClick={() => setShowPass(v => !v)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 pb-1 text-ink-4 hover:text-ink-2 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                {showPass
+                  ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
+                  : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+              </svg>
+            </button>
+          </div>
+          {errors.password && <span className="text-xs text-danger">{errors.password.message}</span>}
+          <Link to="/esqueci-senha" className="self-end text-[13px] text-ink-3 hover:text-ink transition-colors">Esqueci a senha</Link>
+        </div>
+
+        {apiError && (
+          <div className="px-3.5 py-2.5 rounded-lg bg-danger-soft border border-danger/20 text-sm text-danger">{apiError}</div>
+        )}
+
+        <button type="submit" disabled={isSubmitting}
+          className="h-11 rounded-lg bg-brand text-white font-display font-semibold text-md hover:bg-brand/90 transition-colors active:scale-[0.98] disabled:opacity-60">
+          {isSubmitting ? 'Enviando…' : 'Criar salão com esta conta'}
+        </button>
+        <button type="button" onClick={onBack} className="text-sm text-ink-3 hover:text-ink transition-colors">
+          Voltar
+        </button>
+      </form>
+    </>
   )
 }
