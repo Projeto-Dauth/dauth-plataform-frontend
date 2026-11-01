@@ -33,7 +33,7 @@ test('sem vínculo: digita o código, confere o salão, confirma e entra; depois
 
   await loginByUi(client, account.phone, account.password)
   await expect(client).toHaveURL(/\/meus-saloes$/)
-  await expect(client.getByRole('heading', { name: 'Você ainda não tem vínculo com nenhum salão' })).toBeVisible()
+  await expect(client.getByRole('heading', { name: 'Vamos encontrar o seu salão' })).toBeVisible()
 
   // A máscara aceita minúsculas e sem hífen
   const typed = salon.joinCode.replace('-', '').toLowerCase()
@@ -188,7 +188,7 @@ test('cliente sai do salão pela lista e volta com o código; agendamento em abe
   await client.reload()
   await client.getByRole('button', { name: 'Sair do salão' }).click()
   await client.getByRole('button', { name: 'Sair do salão' }).last().click()
-  await expect(client.getByRole('heading', { name: 'Você ainda não tem vínculo com nenhum salão' })).toBeVisible()
+  await expect(client.getByRole('heading', { name: 'Vamos encontrar o seu salão' })).toBeVisible()
   expect((await memberOf(s.salon.id, account.phone)).active).toBe(false)
 
   // Volta com o código: o mesmo vínculo (histórico preservado)

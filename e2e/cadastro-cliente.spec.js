@@ -27,5 +27,5 @@ test('cliente se cadastra, confirma o telefone pelo link e já entra logado', as
   await page.goto(`/verificar-telefone?token=${user.verificationToken}`)
   // O link já abre a sessão (sem digitar a senha). Conta nova, sem vínculo: cai em Meus salões pedindo o código do salão
   await expect(page).toHaveURL(/\/meus-saloes$/)
-  await expect(page.getByRole('heading', { name: 'Você ainda não tem vínculo com nenhum salão' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vamos encontrar o seu salão' })).toBeVisible()
 })
