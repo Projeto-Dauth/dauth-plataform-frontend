@@ -18,6 +18,7 @@ test('pessoa convidada cria a conta pelo link e entra na equipe', async ({ page,
   await page.goto(`/${salon.slug}/admin/convidar-profissional`)
   await page.getByPlaceholder('Ex: Maria Oliveira').fill('Maria E2E')
   await page.getByPlaceholder('maria@exemplo.com').fill(email)
+  await page.getByPlaceholder('(11) 9 9999-0000').fill(phone)
   await page.getByRole('button', { name: 'Enviar convite' }).click()
   await expect(page.getByText(`Convite enviado para ${email}`)).toBeVisible()
 

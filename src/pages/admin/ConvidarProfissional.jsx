@@ -199,6 +199,7 @@ export default function ConvidarProfissional() {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState(null)
@@ -228,6 +229,8 @@ export default function ConvidarProfissional() {
     if (!name.trim()) e.name = 'Nome obrigatório'
     if (!email.trim()) e.email = 'Email obrigatório'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Email inválido'
+    if (!phone) e.phone = 'Telefone obrigatório'
+    else if (phone.replace(/\D/g, '').length !== 11) e.phone = 'Telefone incompleto'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -237,10 +240,11 @@ export default function ConvidarProfissional() {
     if (!validate()) return
     setLoading(true)
     try {
-      const { data: r } = await platformApi.post('/salon/invite-professional', { name: name.trim(), email: email.trim() }, { headers })
+      const { data: r } = await platformApi.post('/salon/invite-professional', { name: name.trim(), email: email.trim(), phone }, { headers })
       addToast(r.message ?? `Convite enviado para ${email.trim()}`, 'success')
       setName('')
       setEmail('')
+      setPhone('')
       setErrors({})
     } catch (err) {
       addToast(err.response ? (err.response.data?.error ?? 'Erro ao enviar convite') : 'Sem resposta do servidor. O convite pode ter sido salvo — tente de novo que ele é reenviado.', 'error')
@@ -301,7 +305,7 @@ export default function ConvidarProfissional() {
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="bg-surface border border-line rounded-xl p-5 mb-6">
           <h4 className="font-display font-medium text-[15px] mb-3">Novo convite</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4">
             <Input
               label="Nome completo"
               value={name}
@@ -316,6 +320,14 @@ export default function ConvidarProfissional() {
               error={errors.email}
               placeholder="maria@exemplo.com"
               type="email"
+            />
+            <Input
+              label="Telefone"
+              value={phone}
+              onChange={e => setPhone(formatPhone(e.target.value))}
+              error={errors.phone}
+              placeholder="(11) 9 9999-0000"
+              type="tel"
             />
           </div>
           <p className="text-[12px] text-ink-3 leading-relaxed mb-4">
