@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { E2E_API_URL } from '../../backend/e2e/testEnv.js'
-import { SEED_USERS, loginAs } from './support/session.js'
+import { SEED_USERS, loginAs, uniquePhone } from './support/session.js'
 import { newUserPage } from './support/browser.js'
 import { apiPost } from './support/demo.js'
 import { createProfessional } from './support/team.js'
@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }) => {
 
 const stamp = () => `${Date.now()}${Math.floor(Math.random() * 1000)}`
 const invite = (page, salonId, name = `Convidada ${stamp()}`) => page.request.post(`${E2E_API_URL}/api/v1/salon/invite-professional`, {
-  headers: { 'x-salon-id': salonId }, data: { name, email: `convite.${stamp()}@e2e.test` },
+  headers: { 'x-salon-id': salonId }, data: { name, email: `convite.${stamp()}@e2e.test`, phone: uniquePhone() },
 })
 const pendingInvites = (salonId) => prisma.salonInvitation.count({ where: { salonId, status: 'pending' } })
 
@@ -71,7 +71,7 @@ test('dois convites ao mesmo tempo com uma vaga só: só um entra', async ({ pag
 test('reenviar gera link novo e o antigo deixa de valer; convidar de novo a mesma pessoa reenvia', async ({ page }) => {
   const salon = await createSalon(page)
   const email = `convite.${stamp()}@e2e.test`
-  const send = () => page.request.post(`${E2E_API_URL}/api/v1/salon/invite-professional`, { headers: { 'x-salon-id': salon.id }, data: { name: 'Bruna E2E', email } })
+  const send = () => page.request.post(`${E2E_API_URL}/api/v1/salon/invite-professional`, { headers: { 'x-salon-id': salon.id }, data: { name: 'Bruna E2E', email, phone: uniquePhone() } })
   const byToken = (token) => page.request.get(`${E2E_API_URL}/api/v1/invitations/${token}`)
 
   expect((await send()).ok()).toBe(true)
@@ -91,6 +91,38 @@ test('reenviar gera link novo e o antigo deixa de valer; convidar de novo a mesm
   expect(again.status()).toBe(200)
   expect((await again.json()).resent).toBe(true)
   expect(await pendingInvites(salon.id), 'continua um convite só').toBe(1)
+})
+
+test('telefone no convite: o erro sai na hora, antes de gravar ou enviar', async ({ page }) => {
+  const salon = await createSalon(page)
+  const send = (data) => page.request.post(`${E2E_API_URL}/api/v1/salon/invite-professional`, { headers: { 'x-salon-id': salon.id }, data: { name: 'Telefone E2E', ...data } })
+  const email = () => `convite.${stamp()}@e2e.test`
+
+  // Sem telefone, formato errado ou DDD (00) reservado
+  expect((await send({ email: email() })).status(), 'sem telefone').toBe(422)
+  expect((await send({ email: email(), phone: '11999990000' })).status(), 'sem máscara').toBe(422)
+  expect((await send({ email: email(), phone: '(00) 9 0000-0001' })).status(), 'DDD 00').toBe(422)
+
+  // Email de uma conta e telefone de outra
+  const account = await createClientAccount(page)
+  const other = await prisma.user.findFirst({ where: { phone: SEED_USERS.cliente.phone } })
+  const mixed = await send({ email: other.email, phone: account.phone })
+  expect(mixed.status()).toBe(422)
+  expect((await mixed.json()).error).toMatch(/contas diferentes/)
+
+  // Telefone de quem já é profissional do salão (email qualquer)
+  const pro = await createProfessional(salon.id)
+  const proPhone = uniquePhone()
+  await prisma.user.update({ where: { id: (await prisma.salonMember.findUnique({ where: { id: pro.id } })).userId }, data: { phone: proPhone } })
+  expect((await send({ email: email(), phone: proPhone })).status(), 'já é da equipe').toBe(409)
+  expect(await pendingInvites(salon.id), 'nenhum convite gravado').toBe(0)
+
+  // Telefone de uma conta existente, email novo: o convite fica destinado a ela
+  const ok = await send({ email: email(), phone: account.phone })
+  expect(ok.status()).toBe(201)
+  const user = await prisma.user.findFirst({ where: { phone: account.phone } })
+  const inv = await prisma.salonInvitation.findUnique({ where: { id: (await ok.json()).id } })
+  expect(inv.userId).toBe(user.id)
 })
 
 test('convite pela ficha do cliente: ao aceitar, o mesmo cadastro vira profissional e o histórico fica', async ({ page, browser }) => {
