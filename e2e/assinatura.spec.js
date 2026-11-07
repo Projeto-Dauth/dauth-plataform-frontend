@@ -22,7 +22,7 @@ test('dá para pagar a próxima mensalidade a qualquer momento; pedir de novo de
   const { status, body } = await createCharge(page, salon.id, 'essencial')
   expect(status, 'antes dos 7 dias também vale').toBe(200)
   expect(body.kind).toBe('renewal')
-  expect(body.amount).toBe(7990)
+  expect(body.amount).toBe(3990)
 
   const again = await createCharge(page, salon.id, 'essencial')
   expect(again.body.paymentId, 'pedir de novo devolve o mesmo PIX').toBe(body.paymentId)
@@ -50,17 +50,17 @@ test('trimestral e semestral: valor com desconto, soma 90/180 dias e a renovaç�
 
   const { status, body } = await createCharge(page, salon.id, 'essencial', 3)
   expect(status).toBe(200)
-  expect({ kind: body.kind, months: body.months, amount: body.amount }).toEqual({ kind: 'renewal', months: 3, amount: 21570 })
+  expect({ kind: body.kind, months: body.months, amount: body.amount }).toEqual({ kind: 'renewal', months: 3, amount: 10770 })
   expect((await sendPaidWebhook(page, body)).ok()).toBe(true)
   const after3 = await salonOf(salon.id)
   expect(after3.planEndsAt.getTime(), '3 meses = 90 dias').toBe(start + 90 * DAY)
   expect(after3.billingMonths).toBe(3)
 
   const billing = await (await page.request.get(`${E2E_API_URL}/api/v1/salon/billing`, { headers: { 'x-salon-id': salon.id } })).json()
-  expect(billing.nextCharge, 'próximo pagamento na duração contratada').toMatchObject({ months: 3, amountCents: 21570 })
+  expect(billing.nextCharge, 'próximo pagamento na duração contratada').toMatchObject({ months: 3, amountCents: 10770 })
 
   const six = await createCharge(page, salon.id, 'essencial', 6)
-  expect(six.body.amount).toBe(40740)
+  expect(six.body.amount).toBe(20340)
   expect((await sendPaidWebhook(page, six.body)).ok()).toBe(true)
   expect((await salonOf(salon.id)).planEndsAt.getTime(), '6 meses = 180 dias').toBe(start + 270 * DAY)
 
@@ -75,7 +75,7 @@ test('upgrade no plano semestral cobra só a diferença pelos dias que faltam e 
   const { status, body } = await createCharge(page, salon.id, 'profissional')
   expect(status).toBe(200)
   expect(body.kind).toBe('upgrade')
-  // (R$ 101,90 - R$ 67,90) por mês do semestral x 4 meses = R$ 136,00
+  // (R$ 67,90 - R$ 33,90) por mês do semestral x 4 meses = R$ 136,00
   expect(body.amount).toBeGreaterThanOrEqual(13599)
   expect(body.amount).toBeLessThanOrEqual(13600)
 
@@ -86,7 +86,7 @@ test('upgrade no plano semestral cobra só a diferença pelos dias que faltam e 
 
   // A renovação depois do upgrade não é confundida com ele (não vira duplicidade)
   const renew = await createCharge(page, salon.id, 'profissional', 3)
-  expect(renew.body.amount).toBe(32370)
+  expect(renew.body.amount).toBe(21570)
   expect((await sendPaidWebhook(page, renew.body)).ok()).toBe(true)
   expect((await salonOf(salon.id)).planEndsAt.getTime()).toBe(end + 90 * DAY)
   expect(await prisma.payment.count({ where: { salonId: salon.id, status: 'duplicate' } })).toBe(0)
@@ -101,7 +101,7 @@ test('Configurações → Plano mostra o próximo pagamento e o histórico, e pa
   await page.getByRole('radio', { name: /Trimestral/ }).click()
   await page.getByRole('button', { name: 'Gerar PIX' }).click()
   await expect(page.getByAltText('QR Code PIX')).toBeVisible()
-  await expect(page.getByText('R$ 215,70')).toBeVisible()
+  await expect(page.getByText('R$ 107,70')).toBeVisible()
   await page.getByRole('button', { name: '[dev] Simular pagamento' }).click()
   await expect(page.getByText(/Próximo pagamento \(trimestral\):/)).toBeVisible()
 

@@ -109,7 +109,7 @@ test('Visão geral: contagens, receita mensal, vencimentos e PIX duplicado batem
   // PIX pago depois de o período já estar pago: duplicado, precisa de reembolso manual
   await prisma.payment.create({
     data: {
-      salonId: paid.id, plan: 'business', kind: 'renewal', months: 1, amountCents: 19990, status: 'duplicate',
+      salonId: paid.id, plan: 'business', kind: 'renewal', months: 1, amountCents: 11990, status: 'duplicate',
       cycleKey: `dup-${Date.now()}`, expiresAt: new Date(), paidAt: new Date(), note: `Mensalidade já paga (E2E ${paid.id})`,
     },
   })
@@ -120,12 +120,12 @@ test('Visão geral: contagens, receita mensal, vencimentos e PIX duplicado batem
   expect(after.salons.newThisMonth - before.salons.newThisMonth).toBe(2)
   expect(after.trialsEnding7d - before.trialsEnding7d).toBe(1)
   expect(after.plansEnding7d - before.plansEnding7d).toBe(1)
-  expect(after.mrrCents - before.mrrCents).toBe(19990) // Business mensal
-  expect(after.duplicatePayments.some(p => p.salon.id === paid.id && p.amountCents === 19990)).toBeTruthy()
+  expect(after.mrrCents - before.mrrCents).toBe(11990) // Business mensal
+  expect(after.duplicatePayments.some(p => p.salon.id === paid.id && p.amountCents === 11990)).toBeTruthy()
 
-  // Trimestral conta o equivalente mensal (R$ 539,70 / 3 = R$ 179,90)
+  // Trimestral conta o equivalente mensal (R$ 323,70 / 3 = R$ 107,90)
   await prisma.salon.update({ where: { id: paid.id }, data: { billingMonths: 3 } })
-  expect((await systemGet(page, '/system/summary')).mrrCents - before.mrrCents).toBe(17990)
+  expect((await systemGet(page, '/system/summary')).mrrCents - before.mrrCents).toBe(10790)
 
   // Arquivado sai das contagens de status e entra em "arquivados"
   await prisma.salon.update({ where: { id: trial.id }, data: { archivedAt: new Date() } })
@@ -199,7 +199,7 @@ test('detalhe do salão: dono, plano, contagens e pagamentos', async ({ page, br
   await setPaidPlan(salon.id, 'business')
   await prisma.payment.create({
     data: {
-      salonId: salon.id, plan: 'business', kind: 'first', months: 1, amountCents: 19990, status: 'paid',
+      salonId: salon.id, plan: 'business', kind: 'first', months: 1, amountCents: 11990, status: 'paid',
       cycleKey: 'first', paidCycleKey: `${salon.id}|first`, expiresAt: new Date(), paidAt: new Date(),
     },
   })
@@ -212,7 +212,7 @@ test('detalhe do salão: dono, plano, contagens e pagamentos', async ({ page, br
   const panel = page.getByRole('dialog', { name: salon.name })
   await expect(panel.getByText(salon.ownerName)).toBeVisible()
   await expect(panel.getByText('Business · mensal', { exact: true })).toBeVisible()
-  await expect(panel.getByText('R$ 199,90').first()).toBeVisible()
+  await expect(panel.getByText('R$ 119,90').first()).toBeVisible()
   await expect(panel.getByText('Primeiro pagamento · Business · mensal')).toBeVisible()
   await expect(panel.getByText(/Pago/)).toBeVisible()
   await expect(panel.getByText('Nenhum erro nos últimos 14 dias.')).toBeVisible()
