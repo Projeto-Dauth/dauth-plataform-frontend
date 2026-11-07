@@ -23,10 +23,10 @@ test('telefone na lista de espera: salão ganha 15% nas 3 primeiras mensalidades
   expect(await prisma.salon.findUnique({ where: { id: salon.id }, select: { discountMonthsLeft: true, discountSource: true } }))
     .toEqual({ discountMonthsLeft: 3, discountSource: 'lista_espera' })
 
-  // Mensal: R$ 79,90 → R$ 67,90. Gerar o PIX não gasta; pagar gasta 1.
+  // Mensal: R$ 39,90 → R$ 33,90. Gerar o PIX não gasta; pagar gasta 1.
   const first = await createCharge(page, salon.id, 'essencial', 1)
   expect(first.status).toBe(200)
-  expect({ amount: first.body.amount, discountCents: first.body.discountCents }).toEqual({ amount: 6790, discountCents: 1200 })
+  expect({ amount: first.body.amount, discountCents: first.body.discountCents }).toEqual({ amount: 3390, discountCents: 600 })
   expect((await prisma.salon.findUnique({ where: { id: salon.id } })).discountMonthsLeft).toBe(3)
   expect((await sendPaidWebhook(page, first.body)).status()).toBe(200)
   expect((await prisma.salon.findUnique({ where: { id: salon.id } })).discountMonthsLeft).toBe(2)
@@ -35,16 +35,16 @@ test('telefone na lista de espera: salão ganha 15% nas 3 primeiras mensalidades
   await page.goto(`/${salon.slug}/admin/configuracoes?tab=plano`)
   await expect(page.getByText(/desconto da lista de espera: 15% em mais 2 mensalidades/)).toBeVisible()
 
-  // Trimestral com 2 meses de desconto: 2 × 67,90 + 1 × 71,90 (não soma com os 10% do trimestral)
+  // Trimestral com 2 meses de desconto: 2 × 33,90 + 1 × 35,90 (não soma com os 10% do trimestral)
   const quarter = await createCharge(page, salon.id, 'essencial', 3)
-  expect({ amount: quarter.body.amount, discountCents: quarter.body.discountCents }).toEqual({ amount: 20770, discountCents: 800 })
+  expect({ amount: quarter.body.amount, discountCents: quarter.body.discountCents }).toEqual({ amount: 10370, discountCents: 400 })
   await sendPaidWebhook(page, quarter.body)
   const after = await prisma.salon.findUnique({ where: { id: salon.id } })
   expect(after.discountMonthsLeft).toBe(0)
 
   // Acabou o desconto: preço cheio
   const full = await createCharge(page, salon.id, 'essencial', 1)
-  expect({ amount: full.body.amount, discountCents: full.body.discountCents }).toEqual({ amount: 7990, discountCents: 0 })
+  expect({ amount: full.body.amount, discountCents: full.body.discountCents }).toEqual({ amount: 3990, discountCents: 0 })
 })
 
 test('semestral não gasta o desconto (já tem 15%) e a inscrição vale para um salão só', async ({ page }) => {
@@ -56,7 +56,7 @@ test('semestral não gasta o desconto (já tem 15%) e a inscrição vale para um
   const salon = await createSalon(page)
   expect(salon.waitlistDiscount).toBe(true)
   const semester = await createCharge(page, salon.id, 'essencial', 6)
-  expect({ amount: semester.body.amount, discountCents: semester.body.discountCents }).toEqual({ amount: 40740, discountCents: 0 })
+  expect({ amount: semester.body.amount, discountCents: semester.body.discountCents }).toEqual({ amount: 20340, discountCents: 0 })
   await sendPaidWebhook(page, semester.body)
   expect((await prisma.salon.findUnique({ where: { id: salon.id } })).discountMonthsLeft).toBe(3)
 
@@ -72,7 +72,7 @@ test('telefone fora da lista não ganha nada; o /sistema dá o desconto à mão,
   const salon = await createSalon(ownerPage, `Salão Sem Lista ${Date.now()}`)
   expect(salon.waitlistDiscount).toBe(false)
   const before = await createCharge(ownerPage, salon.id, 'essencial', 1)
-  expect(before.body.amount).toBe(7990)
+  expect(before.body.amount).toBe(3990)
   await ownerPage.context().close()
 
   await loginAsSystem(page)
