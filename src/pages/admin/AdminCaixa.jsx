@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Chip from '@/components/ui/Chip'
 import Icon from '@/components/ui/Icons'
 import Modal from '@/components/ui/Modal'
+import ReasonDialog from '@/components/ui/ReasonDialog'
 import HistoricoCliente from '@/components/ui/HistoricoCliente'
 import ModalFecharConta from '@/components/ui/ModalFecharConta'
 import CreditToggleRow from '@/components/ui/CreditToggleRow'
@@ -104,6 +105,9 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
   const [paying, setPaying] = useState(false)
   const [deleteModal, setDeleteModal] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [reopenModal, setReopenModal] = useState(false)
+  const [reopening, setReopening] = useState(false)
+  const [detailKey, setDetailKey] = useState(0)
 
   // Itens da comanda selecionada — GET /tab não traz Tab_items completo (só usa pra
   // calcular o valor pendente), então busca à parte, igual ao ModalFecharConta.
@@ -241,7 +245,7 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
         setSelectedCommissionPaid(!!data.CommissionPaid)
       })
       .catch(() => { setSelectedItems([]); setSelectedCommissionPaid(false) })
-  }, [selectedId])
+  }, [selectedId, detailKey])
 
   // Admin pode editar itens/valores de uma comanda já Paga enquanto a comissão de nenhum
   // item dela tiver sido repassada — mesma regra do backend (checkTabEditable), só decide
@@ -606,6 +610,22 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
     }
   }
 
+  async function handleReopenTab(reason) {
+    setReopening(true)
+    try {
+      const { data } = await api.post(`/tab/${selected.UUID}/reopen`, { reason })
+      const credit = data.credit_refunded > 0 ? ` ${formatCurrency(data.credit_refunded)} de crédito voltaram para a cliente.` : ''
+      addToast(`Comanda reaberta.${credit}`, 'success')
+      setReopenModal(false)
+      setDetailKey(k => k + 1)
+      load(true)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao reabrir comanda', 'error')
+    } finally {
+      setReopening(false)
+    }
+  }
+
   async function openBatchModal(c) {
     try {
       const { data } = await api.get(`/tab/client/${c.client_id}/account-summary`)
@@ -772,11 +792,23 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
         loading={deleting}
       />
 
+      {reopenModal && selected && (
+        <ReasonDialog
+          title="Reabrir comanda paga"
+          message={"O pagamento desta comanda é desfeito e ela volta para Em aberto: os produtos voltam ao estoque e o crédito usado volta para a cliente. Depois é só corrigir e pagar de novo, ou excluir se estiver duplicada."}
+          placeholder="Ex: comanda lançada em dobro"
+          confirmLabel="Reabrir comanda"
+          loading={reopening}
+          onCancel={() => setReopenModal(false)}
+          onConfirm={handleReopenTab}
+        />
+      )}
+
       <Modal
         isOpen={!!conflictModal}
         onClose={() => setConflictModal(null)}
         onConfirm={handleConfirmOverlap}
-        title="Conflito de horário"
+        title="Confira antes de lançar"
         message={`${conflictModal?.message ?? ''} Deseja lançar mesmo assim?`}
         confirmLabel="Lançar mesmo assim"
         loading={confirmingOverlap}
@@ -917,7 +949,7 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
                   </div>
                 )}
 
-                {selected.Status === 'Em aberto' && (
+                {selected.Status === 'Em aberto' && !selected.Package && (
                   <div className="pb-3.5 border-b border-dashed border-line-2 mb-1">
                     <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Adicionar serviço</div>
                     <div className="flex flex-col gap-1.5">
@@ -992,15 +1024,21 @@ function TabComandas({ user, initialAppointmentId, initialGroup }) {
                   <>
                     <TabPaymentInfo tab={selected} />
                     {selected.Status === 'Paga' && role === 'Admin' && (
-                      canEditPaidTab ? (
-                        <div className="mt-2.5 font-mono text-[10.5px] text-ink-3 text-center">
-                          Itens editáveis acima — trava assim que a comissão for repassada.
-                        </div>
-                      ) : selectedCommissionPaid ? (
-                        <div className="mt-2.5 font-mono text-[10.5px] text-ink-3 text-center">
-                          Comissão já repassada — não é mais possível editar esta comanda.
-                        </div>
-                      ) : null
+                      <>
+                        {canEditPaidTab ? (
+                          <div className="mt-2.5 font-mono text-[10.5px] text-ink-3 text-center">
+                            Itens editáveis acima — trava assim que a comissão for repassada.
+                          </div>
+                        ) : selectedCommissionPaid ? (
+                          <div className="mt-2.5 font-mono text-[10.5px] text-ink-3 text-center">
+                            Comissão já repassada. Para corrigir, desfaça o repasse em Comissões → Histórico de repasses.
+                          </div>
+                        ) : null}
+                        <Button variant="ghost" size="sm" className="w-full justify-center mt-3" onClick={() => setReopenModal(true)}>
+                          <Icon name="repeat" size={13} />
+                          Reabrir comanda
+                        </Button>
+                      </>
                     )}
                   </>
                 )}

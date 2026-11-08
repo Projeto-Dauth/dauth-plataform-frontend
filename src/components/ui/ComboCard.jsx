@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from '@/components/ui/Icons'
+import ReasonDialog from '@/components/ui/ReasonDialog'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import MoneyValue from '@/components/ui/MoneyValue'
@@ -23,48 +24,6 @@ function ProgressBar({ used, total }) {
   return (
     <div className="h-1.5 bg-line rounded-full overflow-hidden">
       <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${pct}%` }} />
-    </div>
-  )
-}
-
-// Diálogo de conclusão manual: o motivo é obrigatório (fica registrado no pacote).
-function ConcludeDialog({ combo, remaining, loading, onCancel, onConfirm }) {
-  const [note, setNote] = useState('')
-  const valid = note.trim().length >= 3
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={loading ? undefined : onCancel} />
-      <div role="dialog" aria-modal="true" aria-labelledby={`conclude-${combo.UUID}`}
-        className="relative bg-surface rounded-xl p-6 w-full max-w-md shadow-md border border-line mx-4">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <h3 id={`conclude-${combo.UUID}`} className="font-display font-medium text-lg tracking-tight">Concluir pacote manualmente</h3>
-          <button onClick={onCancel} disabled={loading} aria-label="Fechar" className="text-ink-3 hover:text-ink transition-colors mt-0.5 cursor-pointer">
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        <p className="text-[13.5px] text-ink-2 mb-4 leading-relaxed">
-          {remaining > 0
-            ? `${remaining} ${remaining === 1 ? 'sessão restante deixa' : 'sessões restantes deixam'} de valer. `
-            : ''}
-          O pacote fica como concluído e o cliente pode comprar um novo.
-        </p>
-        <label className="flex flex-col gap-1.5 mb-5">
-          <span className="text-[12px] font-medium text-ink-2">Motivo da conclusão</span>
-          <textarea
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            placeholder="Ex: cliente usou 2 de 5 sessões e não voltou"
-            rows={3}
-            maxLength={500}
-            autoFocus
-            className="w-full px-[14px] py-[10px] rounded-md border border-line bg-surface text-ink-2 font-body text-md placeholder:text-ink-4 focus:outline-none focus:border-brand transition-colors resize-none"
-          />
-        </label>
-        <div className="flex gap-2.5 justify-end">
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={loading}>Cancelar</Button>
-          <Button size="sm" onClick={() => onConfirm(note.trim())} disabled={!valid} loading={loading}>Concluir pacote</Button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -177,9 +136,12 @@ export default function ComboCard({ combo, clientName, onConclude, concluding = 
         loading={cancelling}
       />
       {confirming && (
-        <ConcludeDialog
-          combo={combo}
-          remaining={remaining}
+        <ReasonDialog
+          title="Concluir pacote manualmente"
+          message={`${remaining > 0 ? `${remaining} ${remaining === 1 ? 'sessão restante deixa' : 'sessões restantes deixam'} de valer. ` : ''}O pacote fica como concluído e o cliente pode comprar um novo.`}
+          label="Motivo da conclusão"
+          placeholder="Ex: cliente usou 2 de 5 sessões e não voltou"
+          confirmLabel="Concluir pacote"
           loading={concluding}
           onCancel={() => setConfirming(false)}
           onConfirm={async (note) => { if ((await onConclude(combo, note)) !== false) setConfirming(false) }} // erro: fica aberto com o motivo digitado

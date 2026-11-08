@@ -5,6 +5,7 @@ import { createSalon, setPaidPlan } from './support/salon.js'
 import { apiPost } from './support/demo.js'
 import { createBookingSalon, daysFromToday } from './support/bookingSalon.js'
 import { paidAttendance } from './support/team.js'
+import { createPackage, sellAndPay } from './support/package.js'
 import prisma from './support/db.js'
 import { purgeScheduledSalons } from '../../backend/src/platform/jobs/purgeScheduledSalons.js'
 
@@ -57,6 +58,9 @@ test('exclusão vencida: a rotina apaga o salão e os dados dele, sem mexer em o
   await apiPost(page, s.salon.id, `/users/${att.client}/credit-adjustment`, { amount: 20 })
   const product = await apiPost(page, s.salon.id, '/product', { Name: 'Produto Excluir', Price: 10, Stock: 5 })
   await apiPost(page, s.salon.id, '/product-order', { Product_id: product.UUID, Client_id: att.client, Quantity: 1 })
+  // Pacote criado e vendido: os itens apontam para o serviço e já travaram a purga (FK sem cascade, 2026-11-08)
+  const pkg = await createPackage(page, s.salon, { price: 200, items: [{ service: 'Corte E2E', quantity: 4, price: 50 }] })
+  await sellAndPay(page, s.salon, pkg.id, att.client)
   const notYet = await createSalon(page, `Salão Ainda Não ${Date.now()}`)
 
   for (const id of [s.salon.id, notYet.id]) {
@@ -76,8 +80,10 @@ test('exclusão vencida: a rotina apaga o salão e os dados dele, sem mexer em o
     comandas: await prisma.tab.count({ where: { salonId: s.salon.id } }),
     transacoes: await prisma.transaction.count({ where: { salonId: s.salon.id } }),
     servicos: await prisma.service.count({ where: { salonId: s.salon.id } }),
+    pacotes: await prisma.servicePackage.count({ where: { salonId: s.salon.id } }),
+    pacotesVendidos: await prisma.clientPackage.count({ where: { salonId: s.salon.id } }),
   }
-  expect(left).toEqual({ membros: 0, agendamentos: 0, comandas: 0, transacoes: 0, servicos: 0 })
+  expect(left).toEqual({ membros: 0, agendamentos: 0, comandas: 0, transacoes: 0, servicos: 0, pacotes: 0, pacotesVendidos: 0 })
   expect(await prisma.salon.findUnique({ where: { id: notYet.id } }), 'exclusão ainda não vencida').not.toBeNull()
   expect(await prisma.user.findFirst({ where: { phone: SEED_USERS.owner.phone } }), 'conta do dono continua').not.toBeNull()
 })
