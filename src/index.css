@@ -75,6 +75,13 @@
 .animate-fade-in  { animation: fade-in  0.24s ease-out both; }
 .animate-fade-up  { animation: fade-up  0.32s ease-out both; }
 .animate-scale-in { animation: scale-in 0.20s ease-out both; }
+/* fill "backwards": ao terminar não sobra transform, que prenderia diálogos position:fixed dentro do elemento */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: none; }
+}
+.animate-slide-in-right { animation: slide-in-right 0.22s ease-out backwards; }
+.animate-rise { animation: fade-up 0.32s ease-out backwards; }
 
 /* Midnight — dark mode overrides */
 [data-palette="midnight"] body {

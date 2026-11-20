@@ -4,8 +4,10 @@ import { formatDateTime } from '@/lib/format'
 import PaginationControls from '@/components/ui/PaginationControls'
 import EmptyState from '@/components/ui/EmptyState'
 import Button from '@/components/ui/Button'
+import Icon from '@/components/ui/Icons'
 import { useToast } from '@/context/ToastContext'
-import { OriginBadge, selectCls, SkeletonRows, SidePanel } from './shared'
+import { useSystemWrite, errorOf } from './systemContext'
+import { OriginBadge, Badge, selectCls, SkeletonRows, SidePanel, Card, Panel, SearchField, Toolbar, LoadError, TONES } from './shared'
 
 // Erros do sistema (backend e frontend), guardados por 14 dias. Erros iguais dentro de 1h aparecem numa linha só.
 const LIMIT = 30
@@ -48,6 +50,7 @@ export default function SistemaErros({ salonId, onClearSalon }) {
   const [result, setResult] = useState(null)
   const [failed, setFailed] = useState(false)
   const [openId, setOpenId] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     const t = setTimeout(() => { setFilters(f => ({ ...f, search })); setPage(1) }, 300)
@@ -68,64 +71,69 @@ export default function SistemaErros({ salonId, onClearSalon }) {
       .then(r => { if (alive) setResult(r.data) })
       .catch(() => { if (alive) setFailed(true) })
     return () => { alive = false }
-  }, [filters, page, salonId])
+  }, [filters, page, salonId, reloadKey])
 
   const setFilter = (key, parse = v => v) => (e) => { setFilters(f => ({ ...f, [key]: parse(e.target.value) })); setPage(1) }
+  const selectFull = `${selectCls} flex-1 sm:flex-none`
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-2 mb-4">
-        <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar mensagem ou rota"
-          aria-label="Buscar erro" className={`${selectCls} flex-1 min-w-[200px]`} />
-        <select value={filters.origin} onChange={setFilter('origin')} aria-label="Origem" className={selectCls}>
+    <Card className="overflow-hidden">
+      <Toolbar>
+        <SearchField value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar mensagem ou rota" label="Buscar erro" />
+        <select value={filters.origin} onChange={setFilter('origin')} aria-label="Origem" className={selectFull}>
           {ORIGINS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
-        <select value={filters.days} onChange={setFilter('days', Number)} aria-label="Período" className={selectCls}>
+        <select value={filters.days} onChange={setFilter('days', Number)} aria-label="Período" className={selectFull}>
           {PERIODS.map(p => <option key={p.days} value={p.days}>{p.label}</option>)}
         </select>
-      </div>
+      </Toolbar>
 
       {salonId && (
-        <div className="mb-4 flex items-center gap-2 text-[12.5px]">
-          <span className="text-ink-2">Mostrando só os erros de um salão.</span>
-          <button onClick={onClearSalon} className="text-brand underline cursor-pointer">Ver de todos</button>
+        <div className="px-4 py-2.5 bg-brand-soft/60 border-b border-line flex items-center justify-between gap-3 text-[12.5px]">
+          <span className="text-brand-soft-ink">Mostrando só os erros de um salão.</span>
+          <button onClick={onClearSalon} className="text-brand font-medium hover:underline cursor-pointer">Ver de todos</button>
         </div>
       )}
 
-      {failed ? <p className="text-sm text-danger">Não foi possível carregar os erros.</p>
+      {failed ? <LoadError>Não foi possível carregar os erros.</LoadError>
         : !result ? <SkeletonRows />
         : result.data.length === 0 ? <EmptyState icon="check" title="Nenhum erro no período" />
         : (
           <>
-            <p className="text-[11.5px] text-ink-3 mb-2">{result.total} erro(s) diferente(s)</p>
-            <div className="rounded-lg border border-line bg-surface divide-y divide-line">
+            <div className="divide-y divide-line">
               {result.data.map(e => (
                 <button key={e.id} onClick={() => setOpenId(e.id)}
-                  className="w-full text-left px-4 py-3 hover:bg-surface-2 cursor-pointer block">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                  className="relative w-full text-left pl-5 pr-4 py-3.5 hover:bg-surface-2/70 cursor-pointer block transition-colors">
+                  <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${e.origin === 'frontend' ? 'bg-brand' : 'bg-danger'}`} />
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mb-1.5">
                     <OriginBadge origin={e.origin} />
-                    {e.status && <span className="font-mono text-[11px] text-danger">{e.status}</span>}
-                    <span className="text-[11px] text-ink-3">{formatDateTime(e.lastSeenAt)}</span>
-                    {e.occurrences > 1 && <span className="text-[11px] text-ink-2 font-medium">{e.occurrences}x</span>}
-                    {e.salonName && <span className="text-[11px] text-ink-3">· {e.salonName}</span>}
+                    {e.status && <span className="font-mono text-[11px] font-medium text-danger">{e.status}</span>}
+                    {e.occurrences > 1 && <Badge dot={false}>{e.occurrences}x</Badge>}
+                    {e.salonName && <span className="text-[11.5px] text-ink-3">{e.salonName}</span>}
+                    <span className="ml-auto text-[11px] text-ink-3">{formatDateTime(e.lastSeenAt)}</span>
                   </div>
-                  <p className="text-[13px] text-ink break-words line-clamp-2">{e.message}</p>
-                  <p className="font-mono text-[11px] text-ink-3 mt-0.5 truncate">{where(e)}</p>
+                  <p className="text-[13.5px] text-ink font-medium break-words line-clamp-2">{e.message}</p>
+                  <p className="font-mono text-[11px] text-ink-3 mt-1 truncate">{where(e)}</p>
                 </button>
               ))}
             </div>
-            <PaginationControls page={page} totalPages={Math.ceil(result.total / LIMIT)} onChange={setPage} />
+            <div className="px-4 py-3 border-t border-line bg-surface-2/50">
+              <span className="text-[12px] text-ink-3">{result.total} erro(s) diferente(s)</span>
+              <PaginationControls page={page} totalPages={Math.ceil(result.total / LIMIT)} onChange={setPage} />
+            </div>
           </>
         )}
 
-      {openId && <ErrorDetail id={openId} onClose={() => setOpenId(null)} />}
-    </div>
+      {openId && <ErrorDetail id={openId} onClose={() => setOpenId(null)} onResolved={() => { setOpenId(null); setReloadKey(k => k + 1) }} />}
+    </Card>
   )
 }
 
-function ErrorDetail({ id, onClose }) {
+function ErrorDetail({ id, onClose, onResolved }) {
+  const write = useSystemWrite()
   const [e, setE] = useState(null)
   const [failed, setFailed] = useState(false)
+  const [resolving, setResolving] = useState(false)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -133,7 +141,6 @@ function ErrorDetail({ id, onClose }) {
   }, [id])
 
   const rows = e && [
-    ['Origem', <OriginBadge key="o" origin={e.origin} />],
     ['Tipo', SOURCE_LABEL[e.source] ?? e.source],
     ['Onde', where(e)],
     ['Contexto', e.context],
@@ -146,6 +153,19 @@ function ErrorDetail({ id, onClose }) {
     ['Navegador', e.userAgent],
   ].filter(([, v]) => v != null && v !== '')
 
+  // "Ajustado": o erro (e os iguais) some da lista; se acontecer de novo, volta como erro novo
+  async function resolve() {
+    setResolving(true)
+    try {
+      await write('post', `/system/errors/${id}/resolve`)
+      addToast('Erro marcado como ajustado e removido da lista.', 'success')
+      onResolved()
+    } catch (err) {
+      if (!err.cancelled) addToast(`Falha: ${errorOf(err, 'Não foi possível marcar como ajustado.')}`, 'error')
+      setResolving(false)
+    }
+  }
+
   async function copy() {
     try {
       await navigator.clipboard.writeText(errorReport(e))
@@ -156,30 +176,39 @@ function ErrorDetail({ id, onClose }) {
   }
 
   return (
-    <SidePanel title="Detalhe do erro" onClose={onClose}>
-      {failed ? <p className="text-sm text-danger">Não foi possível carregar o erro.</p>
+    <SidePanel title="Detalhe do erro" onClose={onClose}
+      leading={<span className={`w-11 h-11 rounded-lg grid place-items-center shrink-0 ${TONES.danger.soft}`}><Icon name="alertTriangle" size={20} /></span>}
+      meta={e && <OriginBadge origin={e.origin} />}>
+      {failed ? <LoadError>Não foi possível carregar o erro.</LoadError>
         : !e ? <SkeletonRows rows={4} />
         : (
-          <div className="space-y-5">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-[14px] text-ink font-medium break-words">{e.message}</p>
-              <Button variant="ghost" size="sm" onClick={copy} className="shrink-0">Copiar erro</Button>
-            </div>
-            <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-2 text-[12.5px]">
-              {rows.map(([label, value]) => (
-                <div key={label} className="contents">
-                  <dt className="text-ink-3">{label}</dt>
-                  <dd className="text-ink-2 break-all">{value}</dd>
-                </div>
-              ))}
-            </dl>
-            {e.stack && (
-              <div>
-                <p className="eyebrow mb-2">Stack</p>
-                <pre className="text-[11px] leading-relaxed font-mono text-ink-2 bg-surface-2 border border-line rounded-md p-3 overflow-x-auto whitespace-pre">{e.stack}</pre>
+          <>
+            <Card className="p-4">
+              <p className="text-[14px] text-ink font-medium break-words leading-relaxed">{e.message}</p>
+              <div className="mt-3.5 flex flex-wrap gap-2">
+                <Button size="sm" onClick={resolve} loading={resolving}><Icon name="check" size={14} />Ajustado</Button>
+                <Button variant="outline" size="sm" onClick={copy} disabled={resolving}>Copiar erro</Button>
               </div>
+              <p className="text-[11.5px] text-ink-3 mt-2.5">Ajustado remove este erro da lista. Se voltar a acontecer, aparece de novo.</p>
+            </Card>
+
+            <Panel title="Informações">
+              <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3 text-[12.5px]">
+                {rows.map(([label, value]) => (
+                  <div key={label} className="contents">
+                    <dt className="text-ink-3">{label}</dt>
+                    <dd className="text-ink-2 break-all">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Panel>
+
+            {e.stack && (
+              <Panel title="Stack" flush>
+                <pre className="text-[11px] leading-relaxed font-mono text-ink-2 bg-surface-2 p-4 overflow-x-auto whitespace-pre">{e.stack}</pre>
+              </Panel>
             )}
-          </div>
+          </>
         )}
     </SidePanel>
   )

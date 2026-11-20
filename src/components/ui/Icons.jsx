@@ -176,6 +176,47 @@ const paths = {
       <line x1="12" y1="17" x2="12.01" y2="17"/>
     </>
   ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    </>
+  ),
+  store: (
+    <>
+      <path d="M3 9l1.5-5h15L21 9"/>
+      <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>
+      <path d="M5 12v8h14v-8"/>
+      <path d="M10 20v-4h4v4"/>
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 3l8 3v6c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V6l8-3z"/>
+      <path d="M9 12l2 2 4-4"/>
+    </>
+  ),
+  alertTriangle: (
+    <>
+      <path d="M10.3 3.9L2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>
+      <line x1="12" y1="9.5" x2="12" y2="13.5"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </>
+  ),
+  trendingUp: (
+    <>
+      <polyline points="3 17 9 11 13 15 21 7"/>
+      <polyline points="15 7 21 7 21 13"/>
+    </>
+  ),
+  ban: (
+    <>
+      <circle cx="12" cy="12" r="9"/>
+      <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 14, className = '' }) {

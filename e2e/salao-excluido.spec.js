@@ -59,7 +59,7 @@ test('exclusão vencida: a rotina apaga o salão e os dados dele, sem mexer em o
   const product = await apiPost(page, s.salon.id, '/product', { Name: 'Produto Excluir', Price: 10, Stock: 5 })
   await apiPost(page, s.salon.id, '/product-order', { Product_id: product.UUID, Client_id: att.client, Quantity: 1 })
   // Pacote criado e vendido: os itens apontam para o serviço e já travaram a purga (FK sem cascade, 2026-11-08)
-  const pkg = await createPackage(page, s.salon, { price: 200, items: [{ service: 'Corte E2E', quantity: 4, price: 50 }] })
+  const pkg = await createPackage(page, s.salon, { price: 200, items: [{ service: 'Corte E2E', quantity: 4, price: 50, commission: 35 }] })
   await sellAndPay(page, s.salon, pkg.id, att.client)
   const notYet = await createSalon(page, `Salão Ainda Não ${Date.now()}`)
 
