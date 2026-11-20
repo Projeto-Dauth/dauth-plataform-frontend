@@ -3,7 +3,7 @@ import { createOwner } from './support/accounts.js'
 import { createSalon } from './support/salon.js'
 import { createCharge, sendPaidWebhook } from './support/billing.js'
 import { newUserPage } from './support/browser.js'
-import { SYSTEM_API, loginAsSystem } from './support/system.js'
+import { loginAsSystem, systemWrite } from './support/system.js'
 import prisma from './support/db.js'
 
 // Desconto da lista de espera (backend/src/config/billing.js#WAITLIST_DISCOUNT, platform/services/waitlist.js):
@@ -85,6 +85,6 @@ test('telefone fora da lista não ganha nada; o /sistema dá o desconto à mão,
   expect(await prisma.salon.findUnique({ where: { id: salon.id }, select: { discountMonthsLeft: true, discountSource: true } }))
     .toEqual({ discountMonthsLeft: 3, discountSource: 'manual' })
 
-  const again = await page.request.post(`${SYSTEM_API}/system/salons/${salon.id}/waitlist-discount`)
+  const again = await systemWrite(page, 'POST', `/system/salons/${salon.id}/waitlist-discount`)
   expect(again.status()).toBe(409)
 })

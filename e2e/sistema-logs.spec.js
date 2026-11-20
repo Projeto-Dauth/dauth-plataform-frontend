@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { loginAs, SEED_USERS } from './support/session.js'
 import { demoSalon } from './support/demo.js'
-import { SYSTEM_API, loginAsSystem, systemGet, reportClientError, errorRows } from './support/system.js'
+import { SYSTEM_API, WRITE_HEADERS, loginAsSystem, systemGet, reportClientError, errorRows } from './support/system.js'
 import prisma from './support/db.js'
 
 // Log de erros do painel /sistema: só 5xx/exceções, origem backend × frontend, sem dado pessoal nem query string,
@@ -222,6 +222,46 @@ test('aba Erros: filtro front/back, busca, período e detalhe com stack', async 
   expect(copied).toContain('Origem: frontend (Tela quebrou)')
   expect(copied).toContain('Onde: /salao-demo/admin/caixa')
   expect(copied).toContain('at Caixa (Caixa.jsx:10:5)')
+})
+
+test('aba Erros: "Ajustado" apaga o erro e os iguais, avisa com toast, entra na auditoria e, se voltar, aparece de novo', async ({ page }) => {
+  const t = tag('AJUSTADO')
+  const other = tag('OUTRO')
+  // Dois registros do mesmo erro (fora da janela de 1h) + um erro diferente que deve ficar
+  const fingerprint = `${t}-fp`
+  const old = new Date(Date.now() - 3 * 3_600_000)
+  await prisma.errorLog.createMany({ data: [
+    { origin: 'backend', source: 'http', message: `${t} falha`, fingerprint, createdAt: old, lastSeenAt: old },
+    { origin: 'backend', source: 'http', message: `${t} falha`, fingerprint },
+    { origin: 'backend', source: 'http', message: `${other} falha`, fingerprint: `${other}-fp` },
+  ] })
+
+  await loginAsSystem(page)
+  // Sem login de superadmin a rota nem existe (404) — conferido no spec estrutural; aqui o caminho feliz pela tela
+  await page.goto('/sistema?tab=erros')
+  await page.getByLabel('Buscar erro').fill(t)
+  await page.getByText(`${t} falha`).first().click()
+  const panel = page.getByRole('dialog', { name: 'Detalhe do erro' })
+  await panel.getByRole('button', { name: 'Ajustado' }).click()
+
+  await expect(page.getByText('Erro marcado como ajustado e removido da lista.')).toBeVisible()
+  await expect(panel).toHaveCount(0)
+  await expect(page.getByText(`${t} falha`)).toHaveCount(0)
+  expect(await prisma.errorLog.count({ where: { fingerprint } })).toBe(0)
+  expect(await prisma.errorLog.count({ where: { fingerprint: `${other}-fp` } })).toBe(1)
+
+  // Auditoria
+  await page.getByRole('tab', { name: 'Auditoria' }).click()
+  await expect(page.getByText('Erro ajustado').first()).toBeVisible()
+
+  // Se acontecer de novo, volta como erro novo
+  const { log } = await backend()
+  await log.logBackendError(new Error(`${t} falha`), { req: { method: 'GET', originalUrl: '/api/x', headers: {} } })
+  await expect.poll(async () => (await errorRows(t)).length).toBe(1)
+
+  // Erro que não existe: 404
+  const res = await page.request.post(`${SYSTEM_API}/system/errors/nao-existe/resolve`, { headers: WRITE_HEADERS })
+  expect(res.status()).toBe(404)
 })
 
 test('erros de um salão: o detalhe do salão leva à aba Erros filtrada só por ele', async ({ page }) => {

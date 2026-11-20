@@ -10,6 +10,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import LoadMoreButton from '@/components/ui/LoadMoreButton'
 import MoneyValue from '@/components/ui/MoneyValue'
+import ReasonDialog from '@/components/ui/ReasonDialog'
 import { useToast } from '@/context/ToastContext'
 import useAuthStore from '@/store/authStore'
 import api from '@/lib/api'
@@ -375,6 +376,10 @@ function HistoricoRepasses({ profFilter }) {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
+  const [reverseTarget, setReverseTarget] = useState(null)
+  const [reversing, setReversing] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const { addToast } = useToast()
 
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
 
@@ -388,7 +393,21 @@ function HistoricoRepasses({ profFilter }) {
       .then(res => setHistory(res.data.data ?? []))
       .catch(() => setHistory([]))
       .finally(() => setLoading(false))
-  }, [profFilter, selMonth, selYear])
+  }, [profFilter, selMonth, selYear, reloadKey])
+
+  async function handleReverse(reason) {
+    setReversing(true)
+    try {
+      await api.post(`/transaction/commissions/payouts/${reverseTarget.UUID}/reverse`, { reason })
+      addToast(`Repasse desfeito: as comissões de ${reverseTarget.professional_name} voltaram para "a repassar"`, 'success')
+      setReverseTarget(null)
+      setReloadKey(k => k + 1)
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Erro ao desfazer repasse', 'error')
+    } finally {
+      setReversing(false)
+    }
+  }
 
   const selects = (
     <div className="flex items-center gap-2 mb-5">
@@ -436,7 +455,7 @@ function HistoricoRepasses({ profFilter }) {
                   {formatDateTime(h.paid_at)} · por {h.paid_by_name ?? 'registro antigo'}
                 </div>
               </div>
-              <span className="font-mono text-[13px] font-semibold text-ink shrink-0"><MoneyValue>{formatCurrency(h.total_amount)}</MoneyValue></span>
+              <span className={`font-mono text-[13px] font-semibold shrink-0 ${h.reversal ? 'text-ink-4 line-through' : 'text-ink'}`}><MoneyValue>{formatCurrency(h.total_amount)}</MoneyValue></span>
               <Icon
                 name="chevronRight"
                 size={14}
@@ -445,6 +464,7 @@ function HistoricoRepasses({ profFilter }) {
             </div>
             <div className="mt-2 pl-[38px]">
               <Chip variant="ghost">{h.method ? (METHOD_LABELS[h.method] ?? h.method) : 'Método não registrado'}</Chip>
+              {h.reversal && <span className="ml-1.5"><Chip variant="danger">Desfeito</Chip></span>}
             </div>
           </button>
 
@@ -461,11 +481,31 @@ function HistoricoRepasses({ profFilter }) {
                   </div>
                 ))}
               </div>
+              {h.reversal ? (
+                <p className="mt-3 text-[12px] text-ink-3 leading-relaxed">
+                  <span className="font-medium text-ink-2">Desfeito em {formatDateTime(h.reversal.at)} por {h.reversal.by_name}:</span> {h.reversal.reason}
+                </p>
+              ) : !h.UUID.startsWith('tx-') && (
+                <div className="mt-3">
+                  <Button variant="ghost" size="sm" onClick={() => setReverseTarget(h)}>Desfazer repasse</Button>
+                </div>
+              )}
             </div>
           )}
         </div>
       ))}
       </div>
+      {reverseTarget && (
+        <ReasonDialog
+          title="Desfazer repasse"
+          message={`As ${reverseTarget.transaction_count} comissões deste repasse para ${reverseTarget.professional_name} voltam para "a repassar". O repasse continua no histórico, marcado como desfeito.`}
+          placeholder="Ex: repasse lançado na profissional errada"
+          confirmLabel="Desfazer repasse"
+          loading={reversing}
+          onCancel={() => setReverseTarget(null)}
+          onConfirm={handleReverse}
+        />
+      )}
     </>
   )
 }

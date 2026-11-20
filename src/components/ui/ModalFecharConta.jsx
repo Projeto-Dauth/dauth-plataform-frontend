@@ -296,7 +296,9 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
   // ligado por Booking_group) — ver tabController.addItem.
   const postAddService = (service, professionalId, confirmOverlap = false) => {
     const { date, time } = nowDateAndTime()
-    return api.post(`/tab/${clientData.tabs[0]?.UUID ?? ''}/items`, {
+    // Comanda de compra de pacote não aceita itens (o backend recusa): lança na primeira comanda de atendimento.
+    const target = clientData.tabs.find(t => !t.Package) ?? clientData.tabs[0]
+    return api.post(`/tab/${target?.UUID ?? ''}/items`, {
       Item_type: 'service',
       Service_id: service.UUID,
       Professional_id: professionalId,
@@ -704,7 +706,7 @@ export default function ModalFecharConta({ client, paying, onClose, onConfirm })
         isOpen={!!conflictModal}
         onClose={() => setConflictModal(null)}
         onConfirm={handleConfirmOverlap}
-        title="Conflito de horário"
+        title="Confira antes de lançar"
         message={`${conflictModal?.message ?? ''} Deseja lançar mesmo assim?`}
         confirmLabel="Lançar mesmo assim"
         loading={confirmingOverlap}

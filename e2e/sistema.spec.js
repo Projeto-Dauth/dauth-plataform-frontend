@@ -11,7 +11,7 @@ import prisma from './support/db.js'
 // Painel /sistema: só a conta em SUPERADMIN_USER_IDS (no E2E, E2E_SUPERADMIN, criada pelo e2e/server.js).
 // Para todo o resto — inclusive sem login — o painel não existe (404 na API e "Página não encontrada" na tela).
 // Os erros (log front/back, retenção) estão em sistema-logs.spec.js.
-const SYSTEM_ROUTES = ['/system/me', '/system/summary', '/system/salons', '/system/salons/qualquer', '/system/errors', '/system/errors/qualquer']
+const SYSTEM_ROUTES = ['/system/me', '/system/mfa/status', '/system/summary', '/system/salons', '/system/salons/qualquer', '/system/errors', '/system/errors/qualquer', '/system/audit', '/system/users', '/system/users/qualquer']
 const DAY = 86_400_000
 
 // Salão próprio do teste, com dono, clientes, profissional, conta de serviço e agendamento recente
@@ -38,10 +38,26 @@ test('toda rota /system passa pela trava do painel', async () => {
   applyTestEnv()
   const { default: router } = await import('../../backend/src/platform/routes/routes.js')
   const { requireSuperAdmin } = await import('../../backend/src/platform/middleware/requireSuperAdmin.js')
+  const { requireSystemUnlock, requireStepUp, requireTrustedOrigin } = await import('../../backend/src/platform/middleware/requireSystemUnlock.js')
   const systemRoutes = router.stack.filter(l => l.route?.path.startsWith('/system'))
-  expect(systemRoutes.length).toBeGreaterThanOrEqual(6)
-  const unguarded = systemRoutes.filter(l => !l.route.stack.some(s => s.handle === requireSuperAdmin)).map(l => l.route.path)
-  expect(unguarded, 'rotas /system sem requireSuperAdmin').toEqual([])
+  expect(systemRoutes.length).toBeGreaterThanOrEqual(29)
+  const has = (l, fn) => l.route.stack.some(s => s.handle === fn)
+  const label = (l) => `${Object.keys(l.route.methods)[0].toUpperCase()} ${l.route.path}`
+
+  // Camada 1: toda rota exige a conta da lista
+  expect(systemRoutes.filter(l => !has(l, requireSuperAdmin)).map(label), 'rotas /system sem requireSuperAdmin').toEqual([])
+
+  // Camada 2: toda rota, menos a entrada e o próprio MFA (que destravam), exige o painel destravado
+  const gated = systemRoutes.filter(l => l.route.path !== '/system/me' && !l.route.path.startsWith('/system/mfa/'))
+  expect(gated.length).toBeGreaterThanOrEqual(23)
+  expect(gated.filter(l => !has(l, requireSystemUnlock)).map(label), 'rotas /system sem requireSystemUnlock').toEqual([])
+
+  // Camada 3: toda escrita exige código recente e origem confiável (as rotas do MFA, só a origem)
+  const writes = gated.filter(l => !l.route.methods.get)
+  expect(writes.length).toBeGreaterThanOrEqual(15)
+  expect(writes.filter(l => !has(l, requireStepUp) || !has(l, requireTrustedOrigin)).map(label), 'escritas sem requireStepUp/requireTrustedOrigin').toEqual([])
+  const mfaWrites = systemRoutes.filter(l => l.route.path.startsWith('/system/mfa/') && l.route.methods.post)
+  expect(mfaWrites.filter(l => !has(l, requireTrustedOrigin)).map(label), 'POST do MFA sem requireTrustedOrigin').toEqual([])
 })
 
 test('ninguém além da dona do sistema vê o painel (API e tela)', async ({ page, browser }) => {
@@ -82,13 +98,13 @@ test('cada abertura do painel fica registrada uma vez só e aparece em "Últimos
 
   // A tela chama /system/me duas vezes no dev (StrictMode): conta como um acesso
   await page.goto('/sistema')
-  await expect(page.getByRole('heading', { name: 'Sistema' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Visão geral' })).toBeVisible()
   await expect.poll(mine).toBe(1)
   await expect(page.getByText('Últimos acessos a este painel')).toBeVisible()
 
   // Recarregar logo em seguida também é o mesmo acesso
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Sistema' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Visão geral' })).toBeVisible()
   expect(await mine()).toBe(1)
 
   // Passado 1 min, abrir de novo é um acesso novo

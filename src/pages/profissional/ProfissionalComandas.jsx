@@ -513,7 +513,7 @@ export default function ProfissionalComandas() {
         isOpen={!!conflictModal}
         onClose={() => setConflictModal(null)}
         onConfirm={handleConfirmOverlap}
-        title="Conflito de horário"
+        title="Confira antes de lançar"
         message={`${conflictModal?.message ?? ''} Deseja lançar mesmo assim?`}
         confirmLabel="Lançar mesmo assim"
         loading={confirmingOverlap}
@@ -642,7 +642,7 @@ export default function ProfissionalComandas() {
                   </div>
                 )}
 
-                {selected.Status === 'Em aberto' && (
+                {selected.Status === 'Em aberto' && !selected.Package && (
                   <div className="pb-3.5 border-b border-dashed border-line-2 mb-1">
                     <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-2">Adicionar serviço</div>
                     <div className="flex flex-col gap-1.5">
