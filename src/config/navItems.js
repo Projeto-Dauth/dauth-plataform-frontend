@@ -7,7 +7,7 @@ export const navItemsByRole = {
     { type: 'label', label: 'Operação' },
     { to: 'admin', end: true, icon: 'cal', label: 'Agenda' },
     { to: 'admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-    { to: 'admin/usuarios', icon: 'users', label: 'Clientes' },
+    { to: 'admin/usuarios', icon: 'users', label: 'Usuários' },
     { to: 'admin/servicos', icon: 'scissors', label: 'Serviços', children: [
       { to: 'admin/servicos', label: 'Serviços' },
       { to: 'admin/servicos?tab=categorias', label: 'Categorias' },
@@ -62,7 +62,7 @@ navItemsByRole.Servico = [
   { type: 'label', label: 'Operação' },
   { to: 'admin', end: true, icon: 'cal', label: 'Agenda' },
   { to: 'admin/agendamentos', icon: 'receipt', label: 'Agendamentos' },
-  { to: 'admin/usuarios', icon: 'users', label: 'Clientes' },
+  { to: 'admin/usuarios', icon: 'users', label: 'Usuários' },
   { to: 'admin/servicos', icon: 'scissors', label: 'Serviços', children: [
     { to: 'admin/servicos', label: 'Serviços' },
     { to: 'admin/servicos?tab=categorias', label: 'Categorias' },
