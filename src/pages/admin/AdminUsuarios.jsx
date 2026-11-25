@@ -823,6 +823,14 @@ export default function AdminUsuarios() {
 
   const [roleFilter, setRoleFilter] = useState('Todos')
   const [extraFilter, setExtraFilter] = useState(null)
+  // desativadas (ex.: profissional removida) ficam ocultas até a Admin pedir para ver
+  const [showInactive, setShowInactive] = useState(() => localStorage.getItem('usuarios_show_inactive') === '1')
+  function toggleShowInactive() {
+    setShowInactive((prev) => {
+      localStorage.setItem('usuarios_show_inactive', prev ? '0' : '1')
+      return !prev
+    })
+  }
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [openTabClientIds, setOpenTabClientIds] = useState(new Set())
@@ -855,13 +863,14 @@ export default function AdminUsuarios() {
       if (roleFilter !== 'Todos') params.Role = ROLE_FILTER_API[roleFilter] ?? roleFilter
       if (debouncedSearch) params.search = debouncedSearch
       if (extraFilter === 'ativo') params.active = true
-      if (extraFilter === 'inativo') params.active = false
+      else if (extraFilter === 'inativo') params.active = false
+      else if (!showInactive) params.active = true
       if (extraFilter === 'aniversariante') params.birthday_month = new Date().getMonth() + 1
       if (extraFilter === 'mensalista') params.ids = mensalistaIdsKey
       if (extraFilter === 'comanda_aberta') params.ids = openTabIdsKey
       return api.get('/users', { params }).then((r) => ({ ...r.data, data: excludeMonitorAdmins(r.data.data ?? []) }))
     },
-    [roleFilter, debouncedSearch, extraFilter, mensalistaIdsKey, openTabIdsKey]
+    [roleFilter, debouncedSearch, extraFilter, showInactive, mensalistaIdsKey, openTabIdsKey]
   )
 
   const { restartTour } = useTour('admin_usuarios', adminUsuariosSteps, !loading)
@@ -965,7 +974,7 @@ export default function AdminUsuarios() {
     <AppLayout sidebar={sidebar}>
       <div className="flex justify-between items-end mb-5 md:mb-6">
         <div>
-          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Clientes</h3>
+          <h3 className="font-display font-medium text-[22px] md:text-[26px] tracking-tight">Usuários</h3>
           <p className="text-[12px] md:text-[13px] text-ink-3 mt-1">Gerencie clientes, profissionais e administradores</p>
           <button onClick={restartTour} className="inline-flex items-center gap-1 text-[11px] text-ink-4 hover:text-brand transition-colors mt-1.5" title="Repetir tour guiado">
             <Icon name="helpCircle" size={12} />
@@ -990,6 +999,15 @@ export default function AdminUsuarios() {
             {r}
           </button>
         ))}
+        <button
+          onClick={toggleShowInactive}
+          aria-pressed={showInactive}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-[4px] rounded-full text-xs font-medium border cursor-pointer transition-colors ml-auto
+            ${showInactive ? 'bg-brand text-bg border-brand' : 'bg-surface-2 text-ink-3 border-line hover:border-ink-3'}`}
+        >
+          <Icon name={showInactive ? 'eye' : 'eyeOff'} size={12} />
+          Mostrar desativados
+        </button>
       </div>
 
       {/* Busca — sempre visível */}
